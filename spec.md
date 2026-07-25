@@ -443,10 +443,10 @@ Eleven independently implementable components. Component A must land first (boot
 **Enforcement mechanism (to nail down during plan phase):** Options include (a) UserPromptSubmit hook that warns if session model does not match profile expectation, (b) documented manual workflow where user runs `/model <id>` before invoking a skill per the profile, (c) SessionStart hook that sets the session model per profile at session start. The specific mechanism depends on Claude Code platform capabilities at implementation time.
 
 **Files touched:**
-- `bpe/references/model-profiles.md` (new — canonical schema documentation and lookup semantics)
-- `bpe/hooks/profile-check.md` (new — UserPromptSubmit hook to warn on mismatch, per-invocation basis)
-- `.claude/bpe.local.md.example` (new — commented example file for users to copy to their `.claude/` directory)
-- `bpe/README.md` (updated — profile documentation section)
+- `bpe/references/model-profiles.md` (new: canonical schema documentation and lookup semantics)
+- `bpe/hooks/profile-check.md` (new: UserPromptSubmit hook to warn on mismatch, per-invocation basis)
+- `.claude/bpe.local.md.example` (new: commented example file for users to copy to their `.claude/` directory)
+- `bpe/README.md` (updated: profile documentation section)
 
 **Verification:**
 - Example profile file loads without YAML parse errors.
@@ -520,3 +520,39 @@ Before this redesign begins, the following completed-but-uncommitted work from a
 - `bpe/commands/goal.md` (edited): `RESUME:` block in the orchestrator playbook that the parent echoes verbatim on any `Failure:` or `BPE rule violation:` before stopping; Step 5 "Resume Path on Failure" in the command docs.
 
 Commit these as a single preparatory commit (or two if you prefer to separate protocol extraction from resume-path documentation) before generating the plan for this redesign.
+
+## Fable-era context alignment (2026-07-25 audit)
+
+A 2026-07-25 audit swept this plugin against Thariq's "The new rules of context engineering for Claude 5 models" (2026-07-24) and the Claude Fable field guide.
+This section records the findings as a work package for a post-0.6.2 release; the private marketplace repo's spec.md carries the sibling sweep for the other plugins.
+
+Audit context, so the review sees the full picture: bpe scored strongest of all plugins on interface design (validate-findings.py as executable contract, read-only enforced by tool allowlists, exit-0 verification, SHA-based commit checks) and on unknowns methodology (blindspot pass, interview, deviation log, handoff).
+The findings below are structural debt, concentrated in the older interactive skills; the autonomous-loop contracts are correct and deliberately redundant across fresh-context agents (defense-in-depth, keep).
+
+Quick fix already applied on this branch: `execute-plan/SKILL.md` lost its bold-caps "Key Requirements" block (it restated steps 5-9 verbatim), both CRITICAL tags, and a banned-vocabulary word; the single canonical statement of each rule remains in the numbered steps.
+
+### Findings
+
+1. `plan/SKILL.md` is a 290-line monolith, the weakest progressive disclosure in the plugin.
+Split the two templates, the meta-prompting philosophy, and the tool-discovery two-pass into references/ files; SKILL.md keeps the workflow and a router.
+2. The DO/DON'T-test material is stated three times inside `plan/SKILL.md` (:41-63, :96-102, :174-188) and echoed in `execute-plan` and `brainstorm`.
+One canonical statement (suggest: a short reference file or one section in plan), everything else cites it.
+3. The Tools-block grammar lives in three places: `plan/SKILL.md:230-251`, `validator-protocol.md:134-158`, `session-management.md:298-306`.
+Pick one canonical home (validator-protocol.md is the natural one) and replace the other two with pointers; three copies of a schema is drift waiting to happen.
+4. The legacy `**Validator consults:**` back-compat rule is restated in plan, validator-protocol, and goal.
+Canonicalize alongside finding 3.
+5. The blindspot-pass paragraph is duplicated between `brainstorm/SKILL.md:14-22` and `retrofit/SKILL.md:32-37`; retrofit says "same shape as brainstorm Step 0" and then restates it in full anyway.
+Retrofit points, does not restate.
+6. Emphasis-inflation sweep across the remaining skills: MANDATORY/CRITICAL tags on ordinary steps (`step-executor.md:68,80`, `plan/SKILL.md:65`) dilute the genuine guardrails (main-branch refusal, no --no-verify, sequential dispatch).
+Model-tier nuance: skills pinned to sonnet tiers may deliberately keep firmer language for weaker models; decide per file at plan time and record the ruling, so firmness is a choice rather than an accident.
+7. The `mktemp -u` rationale is stated in both `review/SKILL.md:169` and `handoff/SKILL.md:51`; fold into the agent-shell hygiene reference this spec already plans (D4 in the portfolio spec), then cite it.
+8. Handoff gitignore advice differs in firmness between `handoff/SKILL.md:103` and `session-management.md:214-216`; align the wording.
+9. Field-guide gap: the plan template does not tell the planner to lead with the decisions most likely to change (data model, interfaces, anything user-facing).
+Add that instruction to the plan skill's step-ordering guidance.
+10. Field-guide gap: no prototype-before-implementation path.
+For UI-shaped or design-heavy projects, brainstorm gains an optional "mockup or single-file prototype before the spec hardens" step; skip for library and infra work.
+
+### Non-goals for this package
+
+- No change to the autonomous-loop contracts (sequential dispatch, one-commit finalize, SHA verification, findings schema); their cross-file repetition is deliberate defense-in-depth for fresh-context agents.
+- No re-litigating the 0.6.x design decisions above; this package layers on top.

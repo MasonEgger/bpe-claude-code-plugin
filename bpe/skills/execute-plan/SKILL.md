@@ -23,32 +23,17 @@ disable-model-invocation: true
 
    Before moving to step 4, make an explicit decision in user-facing text: either "Invoked: <skill names>" or "No matching skill for this stack." Only ask the user if you are genuinely unsure which skill applies.
 4. Open @todo.md and select the first unchecked item to work on.
-5. **CRITICAL**: Open @plan.md and locate the specific step being implemented
+5. Open @plan.md and locate the specific step being implemented
    - Find the detailed numbered prompts for this step (e.g., "1. RED: Write tests...", "2. GREEN: Implement..." for a Feature step; "1. Scope: ...", "2. Tooling: ...", "3. Do: ..." for a Task step)
    - Follow these prompts EXACTLY in the specified order
    - Do NOT deviate from the file paths, test scenarios, or implementation approach specified
 6. If you have any questions about the task at hand, ask the user.
 7. Implement the plan for this item as specified in @plan.md:
-   - **Follow the exact numbered sub-steps** in the plan.md prompt
-   - **Use the specific file paths** mentioned in the prompts
-   - **Implement the exact test scenarios** described
-   - Follow the specified sub-steps as written in plan.md (RED/GREEN/REFACTOR for Feature steps; Scope/Tooling/Do/Verify/Document for Task steps)
-   - Write robust, well-documented code
-   - Focus tests on YOUR application logic, not framework functionality
-   - Skip testing trivial code, framework features, or library behavior
-   - Verify that all tests and linting passes
-   - Make sure the tests pass, and the program builds/runs
+   - Follow the numbered sub-steps as written, with the specific file paths and test scenarios they name (RED/GREEN/REFACTOR for Feature steps; Scope/Tooling/Do/Verify/Document for Task steps)
+   - Focus tests on YOUR application logic, not framework or library behavior
+   - Verify tests and linting pass and the program builds/runs
 
    Note: plan.md may mix Feature and Task steps within one plan. Honor whichever sub-step shape the current step declares; the numbered sub-steps ARE the procedure, regardless of template.
 8. **Update documentation as specified** in the @plan.md prompts for this step
-9. **CRITICAL** Update @todo.md and mark off the item that was completed
+9. Update @todo.md and mark off the item that was completed
 10. Ask the user if there is anything else they want you to do or review for this session.
-
-## Key Requirements:
-- **NEVER** skip or reorder the numbered steps in plan.md
-- **NEVER** skip step 3 (skill loading). Auto-loaded CLAUDE.md rules are not the same as an invoked skill — when in doubt, invoke.
-- **ALWAYS** use the exact file paths specified in the prompts
-- **FOLLOW** the step's declared template (RED-GREEN-REFACTOR for Feature; Scope/Tooling/Do/Verify/Document for Task) as outlined in each step
-- **COMPLETE** all documentation updates mentioned in the step
-- **VERIFY** all application logic is tested (not framework/library code)
-- Treat @plan.md prompts as **implementation instructions**, not suggestions
