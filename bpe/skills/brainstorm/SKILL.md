@@ -66,6 +66,18 @@ When step 5 collected a verification command, add a `**Verification command:** <
 
 If the user says no validators apply at the project level, write the section with both lists empty and `**Notes:** No domain validators apply for this project. /bpe:plan will declare "**Tools:** none" for every section.` This still creates the section so plan.md has a known structure to read.
 
+## Closure before saving
+
+Brainstorm does not end with open questions. The whole point of the session is to answer them. The saved spec must be decision-complete: every question raised during the session is resolved in it, and it contains no "Open questions", "Open items", "TBD", "TODO", or "decide later" section that punts a choice to plan time or to the executing agent.
+
+Before writing spec.md, run a closure pass:
+
+1. Re-read the whole session and list every question, fork, or ambiguity that came up.
+2. For each one still unresolved, ask it now, one at a time, until it is closed. Do not save spec.md while the list is non-empty.
+3. A deferral IS a closure, not an escape hatch. When the user says "whatever works best", "you decide", or similar, that closes the item: record the concrete choice you made as a decided requirement in spec.md, with a one-line rationale. Never leave it phrased as an unanswered question.
+4. The only thing that may carry forward is a review checkpoint: a decision that IS made but that you want the user to eyeball. Phrase these as `Decision: <the decision> (confirm at review)`, never as an open question. Prefer resolving in-session over deferring to review; use a checkpoint only when the choice is genuinely low-stakes or reversible.
+5. If a question truly cannot be answered without information nobody has yet (e.g. a value only discoverable during implementation), record it as an explicit assumption with a chosen default, not as an open question.
+
 ## Saving
 
 Once we are done, save the spec as @spec.md. Place the `## Starting context` section from Step 0 between `# <title>` and `## Project overview`. Make sure the `## Available tooling` section is present near the top of the spec (after the project overview, before the detailed requirements).
