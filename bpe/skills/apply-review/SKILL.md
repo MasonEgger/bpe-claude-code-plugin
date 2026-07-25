@@ -14,10 +14,10 @@ Consume the feedback JSON written by `/bpe:review` and apply the user's annotati
 
 If the user passed a feedback path as an argument, use that file. This is the escape hatch for replaying an older review or for the case where the user ran two reviews in parallel and the wrong one is "most recent."
 
-Otherwise, find the most recent feedback JSON in `/tmp/`:
+Otherwise, find the most recent feedback JSON in the temp directory (`/bpe:review` generates the path with `mktemp`, which honors `$TMPDIR`):
 
 ```bash
-ls -t /tmp/bpe-review-*-feedback.json 2>/dev/null | head -1
+ls -t "${TMPDIR:-/tmp}"/bpe-review-*-feedback.json 2>/dev/null | head -1
 ```
 
 If none exists, tell the user to run `/bpe:review` first and stop.

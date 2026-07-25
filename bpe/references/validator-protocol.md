@@ -38,11 +38,23 @@ For each unchecked item in `todo.md` the orchestrator runs this state machine. S
      => Final test run, session summary, commit message, single commit, push.
 ```
 
+## Interrupted dispatches (usage limits, crashes)
+
+A dispatch that ends without its report block (`Implement-Report`, `Fix-Report`, `Finalize-Report`, or a ```findings``` block) was interrupted: a usage-limit pause, a crash, or a killed subagent. The tree it leaves behind is untrusted; a half-applied edit is worse than no edit, because the next dispatch builds on it without knowing it is partial.
+
+Recovery, run by the orchestrator at the start of the next turn, before anything else:
+
+1. `git reset --hard && git clean -fd`. This drops all uncommitted work, tracked and untracked, back to the last commit. It is safe because `/bpe:goal` pre-flight refuses to start with a dirty tree, so everything uncommitted belongs to the interrupted step.
+2. Reset the per-step `iter` counter.
+3. Redo the current todo item from `mode=implement`, regardless of how far the state machine had progressed. Validator findings from before the interruption are stale; do not carry them forward.
+
+The commit is the only durable unit. Anything short of a verified finalize commit is disposable and gets rebuilt from the plan.
+
 ## Iteration cap
 
 Three round trips through the fix loop. If the validator still reports `block` or `warn` after the third executor `mode=fix` dispatch, the orchestrator stops the per-step loop and surfaces the unresolved findings as a `Failure:` block to the `/goal` evaluator. The user resolves manually.
 
-`info` findings never trigger a fix loop. They land in the final commit message body (the executor in `mode=finalize` reads the last validator output and appends an `Info findings:` section).
+`info` findings never trigger a fix loop. They land in the final commit message body: the orchestrator carries them into the finalize dispatch prompt as an `Info findings:` block (a finalize dispatch is a fresh context and cannot read earlier validator output), and the executor appends them to the commit message.
 
 ## Severity guidance
 
@@ -135,7 +147,7 @@ Three sub-fields, each comma-separated:
 - `MCPs`: MCP tool or server names. Same dual use as Skills.
 - `Linters`: shell commands. Validator-only; the validator runs them verbatim against the working tree as adversarial review.
 
-A `**Tools:**` block per section shadows the section default (the project-wide `## Available tooling` list in spec.md).
+A `**Tools:**` block per section shadows the project-wide default (the `## Available tooling` list in spec.md).
 A `**Tools:**` block per step, placed immediately under the step's `### Step X:` heading, shadows the section default further: that step resolves against its own block alone.
 A literal `**Tools:** none` disables validator dispatch for every step in that section.
 

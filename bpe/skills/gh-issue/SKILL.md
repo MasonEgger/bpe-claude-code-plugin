@@ -24,7 +24,7 @@ disable-model-invocation: true
    - Ambiguous about scope, approach, or expected behavior
    - Broad enough that multiple implementation strategies exist
 
-   **Route to plan** (TDD implementation roadmap) when the issue is:
+   **Route to plan** (implementation roadmap) when the issue is:
    - A well-defined bug with clear reproduction steps
    - A feature request with specific acceptance criteria
    - Scoped narrowly enough that the implementation path is clear
@@ -32,4 +32,4 @@ disable-model-invocation: true
 
 6. Tell the user which route you chose and why, then execute:
    - **Brainstorm route**: Begin the interactive Q&A process to develop a spec. Use the issue details as the starting idea. Pre-fill any answers you can derive from the issue itself, but still ask the user to confirm and fill gaps. Save the result as spec.md.
-   - **Plan route**: Use the issue details as the spec input. Generate the TDD implementation plan (plan.md + todo.md) following the standard plan format.
+   - **Plan route**: Use the issue details as the spec input. Generate the implementation plan (plan.md + todo.md) following the standard plan format, using TDD Feature steps or non-TDD Task steps as the work warrants.

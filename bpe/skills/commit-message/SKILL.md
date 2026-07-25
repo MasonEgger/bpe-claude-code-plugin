@@ -67,7 +67,7 @@ Do NOT execute the commit yourself — only write the file.
 grep -F "commit-msg.md" .gitignore 2>/dev/null
 ```
 
-If it is not present, append it to `.gitignore` before writing the file. Tell the user when you do this.
+If it is not present, append it to `.gitignore`. Tell the user when you do this.
 
 ## Step 6: Confirm
 

@@ -1,6 +1,6 @@
 ---
 name: goal
-description: Autonomous-mode BPE run via /goal. Modes — full (default) | section <name> | step. Pre-flights branch safety (refuses on main), resolves the project verification command (test-runner autodetect, spec.md fallback, or ask), builds a verifiable completion condition, and writes the assembled /goal block (condition + validator-aware orchestrator playbook + per-commit verification) to goal.md at the repo root for you to paste. Requires Claude Code v2.1.139+; put your session in auto mode before pasting for unattended execution.
+description: Autonomous-mode BPE run via /goal. Modes — full (default) | section <name> | step. Pre-flights branch safety (refuses on main, requires a clean tree), resolves the project verification command (test-runner autodetect, spec.md fallback, or ask), builds a verifiable completion condition, and writes the assembled /goal block (condition + validator-aware orchestrator playbook + per-commit verification) to goal.md at the repo root for you to paste. Requires Claude Code v2.1.139+; put your session in auto mode before pasting for unattended execution.
 argument-hint: [full | section <name> | step]
 model: sonnet
 disable-model-invocation: true
@@ -34,7 +34,7 @@ test -f todo.md && echo "todo: yes" || echo "todo: NO"
 grep -c '^- \[ \]' todo.md 2>/dev/null || echo 0
 grep -q '^commit-msg\.md$' .gitignore && echo "gitignore commit-msg.md: ok" || echo "gitignore commit-msg.md: MISSING"
 grep -q '^goal\.md$' .gitignore && echo "gitignore goal.md: ok" || echo "gitignore goal.md: MISSING"
-grep -c '^\*\*Validator consults:\*\*' plan.md 2>/dev/null || echo 0
+grep -cE '^\*\*(Tools|Validator consults):\*\*' plan.md 2>/dev/null || echo 0
 ```
 
 Then resolve the verification command through a three-stage cascade:
@@ -52,13 +52,14 @@ The resolved command need not be a test runner; for a prose or config project it
 **Refuse and stop if any of these are true:**
 
 - Branch is `main` or `master`. Tell the user: "Refusing to run autonomous mode on main. Create a feature branch first: `git checkout -b <branch-name>`."
+- `git status --short` is non-empty. Tell the user: "Refusing to start with uncommitted or untracked changes. The goal loop's interruption recovery resets the tree to HEAD (`git reset --hard && git clean -fd`) and would destroy them. Commit or stash first."
 - `plan.md` or `todo.md` is missing.
 - Zero unchecked items in `todo.md`.
 - `commit-msg.md` is not gitignored. Tell the user to add it and re-run.
 - `goal.md` is not gitignored. Tell the user to add it and re-run; this command writes the `/goal` block there as a working artifact.
 - The verification-command cascade resolves nothing: no manifest match, no `**Verification command:**` field in spec.md, and the user didn't supply one.
 
-The "Validator consults:" count from pre-flight is informational, not a refusal trigger. Zero is fine; the orchestrator treats every section as `none` and skips the validator loop.
+The Tools-block count from pre-flight (`**Tools:**`, or legacy `**Validator consults:**`) is informational, not a refusal trigger. Zero is fine; the orchestrator treats every section as `none` and skips the validator loop.
 
 Do NOT auto-create branches, auto-edit `.gitignore`, or auto-anything in pre-flight. These are deliberate decisions for the user.
 
@@ -94,29 +95,30 @@ Use the Write tool to overwrite `goal.md` at the repo root with exactly the cont
 
 You're the orchestrator for a validator-aware autonomous BPE run. Loop until the goal condition above is met.
 
-READ ${CLAUDE_PLUGIN_ROOT}/references/validator-protocol.md ONCE AT TURN START. It defines the per-step state machine (executor mode=implement -> validator + fix loop -> executor mode=finalize), the findings schema, and the iteration cap. Follow it exactly.
+READ ${CLAUDE_PLUGIN_ROOT}/references/validator-protocol.md ONCE AT TURN START. It defines the per-step state machine (implement -> validator + fix loop -> finalize), the findings schema, the iteration cap, and interrupted-dispatch recovery. Follow it exactly.
 
-SEQUENTIAL DISPATCHES ONLY. One Agent call per turn. BPE steps share todo.md, git tree, test suite; parallel dispatches race and corrupt all three. After one dispatch + its verification, YOUR TURN ENDS; the /goal evaluator runs; if the condition isn't met a new turn begins.
+SEQUENTIAL DISPATCHES ONLY. One Agent call per turn. BPE steps share todo.md, git tree, test suite; parallel dispatches corrupt all three. After one dispatch + verification, YOUR TURN ENDS; the /goal evaluator decides if a new turn begins.
 
 Each committed step is EXACTLY ONE commit. No fixups, amends, or --no-verify. Every commit includes a new .ai-sessions/session-*.md (the executor's mode=finalize creates it; you verify it landed). Any Failure or rule violation => echo RESUME (below) and STOP.
 
 Per turn:
 1. git rev-parse --abbrev-ref HEAD; abort if main/master.
-2. Read first `- [ ]` in todo.md. None remain => run <test-cmd>, echo `git log <branch>..HEAD`, stop.
-3. Execute one state-machine step from validator-protocol.md against the current todo item. One Agent dispatch per turn. The state machine spans multiple turns per todo item: turn 1 implement, optional turns 2..K validator + fix, final turn finalize. Track per-step iter in your reasoning; reset when moving to the next todo item.
-4. For a validator dispatch: read the current section's "Validator consults:" line in plan.md. If "none" or absent, skip validator and dispatch executor mode=finalize next turn. Otherwise pass the section's MCPs and Skills verbatim to bpe:validator with Iteration=iter and Diff source=`git diff HEAD`. Pipe its ```findings``` block through ${CLAUDE_PLUGIN_ROOT}/scripts/validate-findings.py. Script exit 1 => Failure (malformed validator output), stop.
-5. Verdict handling: clean OR only info => next turn dispatches finalize (carry info findings into the finalize prompt as "Info findings: <list>"). block/warn and iter<3 => next turn dispatches executor mode=fix with the validated findings block; iter+=1. block/warn and iter==3 => Failure, echo unresolved findings, echo RESUME, STOP.
-6. For a finalize dispatch return: parse the Finalize-Report. VERIFY against the reported SHA (NOT HEAD; HEAD is unreliable if anything raced):
+2. INTERRUPTION CHECK: last dispatch ended with no report block (limit pause, crash, kill)? Tree is untrusted: git reset --hard && git clean -fd; reset iter; redo the item from mode=implement.
+3. Read first `- [ ]` in todo.md. None remain => run <test-cmd>, echo `git log origin/<branch>..HEAD`, stop.
+4. Execute one state-machine step from validator-protocol.md against the current todo item (turn 1 implement, optional turns 2..K validator + fix, final turn finalize). Track per-step iter; reset it on a new todo item.
+5. For a validator dispatch: read the current section's `**Tools:**` block in plan.md (or legacy `**Validator consults:**` line). If none or absent, skip validator and dispatch executor mode=finalize next turn. Otherwise pass the section name and its Skills, MCPs, and Linters verbatim to bpe:validator with Iteration=iter and Diff source=`git diff HEAD`. Pipe its ```findings``` block through ${CLAUDE_PLUGIN_ROOT}/scripts/validate-findings.py; exit 1 => Failure (malformed output), stop.
+6. Verdict handling: clean OR only info => next turn dispatches finalize (carry info findings into the finalize prompt as "Info findings: <list>"). block/warn and iter<3 => next turn dispatches executor mode=fix with the validated findings block; iter+=1. block/warn and iter==3 => Failure, echo unresolved findings, echo RESUME, STOP.
+7. For a finalize dispatch return: parse the Finalize-Report. VERIFY against the reported SHA (NOT HEAD; HEAD is unreliable if anything raced):
    a. git rev-parse HEAD must equal Commit-sha.
    b. git show --stat --name-only <sha> | grep -E '^\.ai-sessions/session-.*\.md$' must be non-empty.
    c. Tests field must indicate exit 0.
    Any check fails => echo "BPE rule violation: <details>", echo RESUME, STOP.
-7. Echo `git log -1 --format="%h %s"` and `git status --short`. YOUR TURN ENDS.
+8. Echo `git log -1 --format="%h %s"` and `git status --short`. YOUR TURN ENDS.
 
 RESUME:
 - Read the Failure or rule-violation reason above.
 - Fix root cause (code, hook, plan.md).
-- Clean tree: `git commit -S -F commit-msg.md` if commit failed; `git reset --hard` if TDD partial.
+- Clean tree: `git commit -S -F commit-msg.md` if commit failed; `git reset --hard && git clean -fd` if partial.
 - Mark todo.md `[x]` for any step you completed manually.
 - Re-run: `/goal @goal.md` (picks up from first `- [ ]`).
 
@@ -148,14 +150,15 @@ The goal loop halts on any `Failure:` from a subagent or `BPE rule violation:` f
 
 1. **Read the failure reason.** The parent transcript contains the executor's `Failure:` report (schema in `${CLAUDE_PLUGIN_ROOT}/references/step-executor-protocol.md`) or the orchestrator's `BPE rule violation:` message.
 2. **Fix the root cause.** Common cases:
+   - Usage-limit pause, crash, or kill mid-dispatch: nothing to fix. The playbook's interruption check (per-turn step 2) resets the tree with `git reset --hard && git clean -fd` and redoes the item from `mode=implement` when the loop resumes. Half-finished dispatch work must never survive into the next dispatch; the commit is the only durable unit.
    - Tests red at implement-time: fix the code or the test.
-   - Validator blocks at iter 3: adjust `plan.md`'s `Validator consults:` for the section, or change the code the validator objected to.
+   - Validator blocks at iter 3: adjust the section's `**Tools:**` block in `plan.md`, or change the code the validator objected to.
    - Pre-commit hook rejects: fix the hook config, or fix the change so the hook passes.
    - Push fails on auth or upstream: resolve auth, or pull upstream and rebase.
    - Session-summary missing on finalize verification: bug in the executor; fix the plugin file.
 3. **Restore a clean tree.** Two paths, depending on where the failure landed:
    - **Finalize-stage failure** (commit or push): the work is done. Commit or push it manually. `git commit -S -F commit-msg.md` if the commit was rejected; `git push` if only the push failed.
-   - **Implement- or fix-stage failure**: the work is partial and uncommitted. Either `git reset --hard` to drop it and let the loop retry the step, or finish the step manually.
+   - **Implement- or fix-stage failure**: the work is partial and uncommitted. Either `git reset --hard && git clean -fd` to drop it (tracked edits and untracked leftovers both) and let the loop retry the step, or finish the step manually.
 4. **Update `todo.md`.** Any step you completed manually needs its checkbox flipped to `- [x]` so the loop skips it on resume.
 5. **Re-run.** `/goal @goal.md` picks up from the first `- [ ]` in `todo.md`. The orchestrator playbook, condition, mode, test command, and branch are all baked into `goal.md`, so the resume is a single invocation.
 

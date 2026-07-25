@@ -68,4 +68,4 @@ The resulting spec.md matches the format `/bpe:brainstorm` produces, so `/bpe:pl
    **Notes:** Validator should focus on workflow non-determinism, activity heartbeats, and signal/query semantics in any code under `workflows/` and `activities/`.
    ```
 
-   If the user says no validators apply at the project level, write the section with both lists empty and `**Notes:** No domain validators apply for this project. /bpe:plan will declare "Validator consults: none" for every section.` This still creates the section so plan.md has a known structure to read.
+   If the user says no validators apply at the project level, write the section with both lists empty and `**Notes:** No domain validators apply for this project. /bpe:plan will declare "**Tools:** none" for every section.` This still creates the section so plan.md has a known structure to read.

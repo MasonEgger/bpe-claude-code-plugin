@@ -13,7 +13,7 @@ This plugin packages the BPE loop - a structured workflow for building software 
 | `/bpe:brainstorm` | Iterative Q&A to develop a project specification (`spec.md`) |
 | `/bpe:retrofit` | Retrofit a BPE-compatible `spec.md` onto an existing project that lacks one. Reads repo state, runs a shortened Q&A on the gaps; pass `--replace` to overwrite an existing spec |
 | `/bpe:plan` | Transform spec into implementation roadmap (`plan.md` + `todo.md`). Refuses when `plan.md` already exists: pass `--archive` to preserve it under `.ai-sessions/` before regenerating, or `--regen` to discard and regenerate. Dispatches `bpe:cheap-research` for external tool discovery by default; pass `--no-discover` to skip it |
-| `/bpe:execute-plan` | Implement one step at a time following strict TDD |
+| `/bpe:execute-plan` | Implement one step at a time following the plan's sub-steps: TDD Feature steps or checklist Task steps |
 | `/bpe:gh-issue` | Fetch a GitHub issue and route to brainstorm or plan |
 | `/bpe:commit-message` | Generate a commit message explaining what was changed |
 | `/bpe:session-summary` | Generate session recap and capture lessons learned |
@@ -32,14 +32,14 @@ The underlying file layout moved from `commands/<name>.md` to `skills/<name>/SKI
 
 | Agent | Model | Purpose |
 |---|---|---|
-| `bpe:step-executor` | inherit | Worker for `/bpe:goal` autonomous runs. Executes one plan step per dispatch in `implement`, `fix`, or `finalize` mode. |
-| `bpe:validator` | inherit | Read-only QA reviewer dispatched between `implement` and `finalize`. Checks the uncommitted diff against declared skills and MCPs, returns a structured findings block. |
+| `bpe:step-executor` | sonnet | Worker for `/bpe:goal` autonomous runs. Executes one plan step per dispatch in `implement`, `fix`, or `finalize` mode. |
+| `bpe:validator` | opus | Read-only QA reviewer dispatched between `implement` and `finalize`. Checks the uncommitted diff against declared skills, MCPs, and linters, returns a structured findings block. |
 | `bpe:cheap-research` | haiku | Fast, cheap external research: tool discovery, docs lookup, quick fact-checks. Dispatched by `/bpe:plan`, `/bpe:brainstorm`, and `/bpe:retrofit` when they need external info. |
 
 ## The BPE Loop
 
 1. **Brainstorm** - Develop a thorough specification through iterative dialogue
-2. **Plan** - Break the spec into right-sized, TDD-structured implementation steps
+2. **Plan** - Break the spec into right-sized implementation steps: TDD Feature steps for application logic, checklist Task steps for everything else
 3. **Execute** - Implement steps one at a time, following the plan exactly
 4. **Review & Record** - Summarize the session and capture lessons for next time
 
@@ -50,7 +50,7 @@ Session artifacts live in `.ai-sessions/` at the project root:
 - **Session summaries** - Individual markdown files capturing what happened each session
 - **lessons.md** - Accumulated cross-session learnings in a hybrid format (recent + categorized)
 
-The execute-plan command automatically reads the most recent session summary for continuity. Format specs and workflow rules live in `references/session-management.md`, which the relevant commands read directly. There is intentionally no Skill registered for this — invocation is always via an explicit slash command.
+The execute-plan skill automatically reads the most recent session summary for continuity. Format specs and workflow rules live in `references/session-management.md`, which the relevant skills read directly; it is a shared reference document, not a skill of its own.
 
 ## Autonomous Mode
 
@@ -60,15 +60,20 @@ Requires Claude Code v2.1.139+.
 
 ```mermaid
 flowchart TD
-    A["/bpe:goal [full|section|step]"] --> B["Pre-flight checks<br/>(refuses on main, missing files)"]
+    A["/bpe:goal [full|section|step]"] --> B["Pre-flight checks<br/>(refuses on main, dirty tree, missing files)"]
     B --> C["Writes /goal argument to goal.md<br/>(condition + trimmed orchestrator playbook)"]
     C --> D["User runs: /goal @goal.md"]
-    D --> E["Parent loop: dispatch one step at a time"]
-    E --> F["Agent(bpe:step-executor)<br/>fresh context, runs TDD, commits, pushes"]
-    F -->|"returns ≤200-word report"| E
-    E --> G{"/goal evaluator:<br/>condition met?"}
-    G -->|no| E
-    G -->|yes| H["Final session-summary + lessons<br/>(parent runs once)"]
+    D --> E["Parent loop: one dispatch per turn"]
+    E --> F["Agent(bpe:step-executor mode=implement)<br/>fresh context, work left uncommitted"]
+    F --> G{"Section's Tools<br/>block declares<br/>validators?"}
+    G -->|yes| H["Agent(bpe:validator)<br/>read-only, consults declared<br/>skills/MCPs/linters"]
+    H -->|"block/warn, iter < 3"| I["Agent(bpe:step-executor mode=fix)"]
+    I --> H
+    G -->|no| J["Agent(bpe:step-executor mode=finalize)<br/>session summary, single commit, push"]
+    H -->|"clean or info-only"| J
+    J --> K{"/goal evaluator:<br/>condition met?"}
+    K -->|no| E
+    K -->|yes| L["Final session-summary + lessons<br/>(parent runs once)"]
 ```
 
 Modes:
@@ -82,6 +87,7 @@ Hard guarantees:
 - **Refuses to run on `main`/`master`.** Create a feature branch first.
 - The subagent commits with `git commit -S -F commit-msg.md`, then `git push`. If push fails, it stops cleanly with a `Failure:` report.
 - Each subagent dispatch is a fresh context — no compaction, no /clear required.
+- Interrupted dispatches (usage-limit pause, crash, killed subagent) never leave half-finished work behind: on the next turn the orchestrator resets the tree to the last commit (`git reset --hard && git clean -fd`) and redoes the item from `mode=implement`. The commit is the only durable unit.
 - `/goal clear` is the escape hatch. Subagent reports remain in the transcript for review.
 
 `/bpe:goal` writes the assembled `/goal` argument to `goal.md` at the repo root: the condition followed by a trimmed orchestrator playbook, together under `/goal`'s 4000-character cap. You then run `/goal @goal.md` — Claude Code's `@` expansion inlines the file contents as the `/goal` argument, so no copy-paste is needed. The condition leads (the evaluator focuses on its AND clauses); the playbook follows in the same message and tells the parent session how to drive the loop. `goal.md` is intended to be gitignored — `/bpe:goal` refuses to run if it isn't. The file MUST NOT start with `/goal ` since `@goal.md` already supplies the argument; the command writes the body only.

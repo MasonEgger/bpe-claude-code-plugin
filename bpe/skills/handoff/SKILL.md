@@ -48,7 +48,7 @@ Then build the path: `.ai-sessions/handoffs/handoff-{timestamp}-{slug}.md`.
 - **Timestamp**: the exact output of `date +%Y%m%d-%H%M`. Do not substitute or paraphrase.
 - **Slug**: 2-3 word kebab-case description of the focus the next session will pick up. Use `general` if there is no clear single focus.
 
-Read the file (it will be empty) before writing to it.
+Do not Read the path first; the file does not exist yet and Read errors on missing files. Write creates it.
 
 ## Step 2: Tailor to the Next Session's Focus
 

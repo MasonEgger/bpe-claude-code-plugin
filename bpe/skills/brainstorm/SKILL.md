@@ -64,7 +64,7 @@ Tools the `bpe:validator` agent should consult when reviewing diffs in `/bpe:goa
 
 When step 5 collected a verification command, add a `**Verification command:** <command>` line between `**Skills:**` and `**Notes:**`. Omit the line when a test runner is autodetectable. `${CLAUDE_PLUGIN_ROOT}/references/session-management.md` documents the full section format canonically.
 
-If the user says no validators apply at the project level, write the section with both lists empty and `**Notes:** No domain validators apply for this project. /bpe:plan will declare "Validator consults: none" for every section.` This still creates the section so plan.md has a known structure to read.
+If the user says no validators apply at the project level, write the section with both lists empty and `**Notes:** No domain validators apply for this project. /bpe:plan will declare "**Tools:** none" for every section.` This still creates the section so plan.md has a known structure to read.
 
 ## Saving
 

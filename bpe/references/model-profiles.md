@@ -84,7 +84,7 @@ Fall-through consequences worth spelling out:
 ## Example
 
 Matches the canonical example in spec.md Goal 11.
-The `personal` profile pins specific skills and agents to an explicit Fable model ID; the `work` profile uses the `opus` alias so the same overrides resolve to whatever Opus the work environment offers.
+The `personal` profile pins specific skills and agents to an explicit model ID; the `work` profile uses the `opus` alias so the same overrides resolve to whatever Opus the work environment offers.
 
 ```markdown
 ---
@@ -92,7 +92,7 @@ active_profile: personal
 profiles:
   personal:
     skills:
-      brainstorm: claude-opus-4-7        # explicit Fable model ID
+      brainstorm: claude-opus-4-7        # explicit model ID
       apply-review: claude-opus-4-7
     agents:
       validator: claude-opus-4-7

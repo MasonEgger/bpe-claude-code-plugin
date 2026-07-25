@@ -253,7 +253,7 @@ A literal `none` value disables the validator dispatch for every step in that se
 ### Shadowing (section default and per-step override)
 
 - spec.md's `## Available tooling` list, plus any cached `## External tool candidates` entries, is the project-wide pool.
-- A `**Tools:**` block per section shadows the section default: it narrows the project-wide pool down to what that section's steps actually need.
+- A `**Tools:**` block per section shadows the project-wide default: it narrows the pool down to what that section's steps actually need.
 - A `**Tools:**` block per step (placed immediately under the step's `### Step X:` heading) shadows the section default further: that step resolves against its own block and ignores the section's.
 
 ### Backwards compatibility

@@ -88,7 +88,7 @@ The orchestrator and `/goal` evaluator parse these fields from the executor's re
 | `Tests:` | Command + exit `0` + result. |
 | `Commit:` | `<short-sha> <subject ≤80 chars>`. The orchestrator VERIFIES against this SHA (never HEAD). |
 | `Push:` | `ok` or `failed: <reason>`. Any failure stops the loop. |
-| `Status:` | Fixed value: `clean`. |
+| `Status:` | `clean`, or `dirty: <reason>` when files remain uncommitted after the commit. A dirty value is a self-reported contract violation; the orchestrator treats it as a Failure. |
 | `TodoDelta:` | The checked-off line. |
 | `Lessons:` | `added: <count>` or `none`. |
 | `Info-findings:` | `none` or the count appended to the commit body. |
