@@ -6,7 +6,7 @@
     "name": "Mason Egger",
     "url": "https://mason.dev"
   },
-  "repository": "https://github.com/MasonEgger/claude-code-plugin",
+  "repository": "https://github.com/MasonEgger/bpe-claude-code-plugin",
   "license": "MIT",
   "hooks": "./hooks/profile-check.json",
   "keywords": ["workflow", "tdd", "session-management", "development"]
