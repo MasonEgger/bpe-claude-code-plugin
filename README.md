@@ -1,9 +1,10 @@
 # Mason's Claude Code Plugins
 
-A [Claude Code](https://docs.anthropic.com/en/docs/claude-code) plugin repository. Two plugins are published here under the `mmegger-plugins` marketplace:
+A [Claude Code](https://docs.anthropic.com/en/docs/claude-code) plugin repository. One plugin is published here under the `mmegger-plugins` marketplace:
 
 - **`bpe`** — Brainstorm-Plan-Execute development workflow with session tracking, HTML artifact review, and conversational handoffs.
-- **`python`** — Python development standards, toolchain preferences, and coding conventions for modern Python projects.
+
+The `python` plugin formerly hosted here moved to a private marketplace in July 2026 (v2.0.0); the last public version was 0.1.0.
 
 ## Plugins
 
@@ -26,21 +27,6 @@ A structured development workflow built around test-driven development with sess
 
 The BPE loop: Brainstorm a spec through dialogue, Plan it into right-sized TDD steps, Execute one step at a time, then Review and Record lessons for next session. `/bpe:review` and `/bpe:apply-review` give you an interactive HTML pass over any of the BPE artifacts; `/bpe:handoff` lets you pause mid-flight and pass live conversational state to a fresh agent. Format specs and workflow rules for `.ai-sessions/` live in `bpe/references/session-management.md`, read directly by the relevant commands.
 
-### Python
-
-Opinionated Python development standards enforcing modern toolchain preferences and coding conventions.
-
-**Skill:** `python` — Automatically loaded when working with `.py` files, `pyproject.toml`, `noxfile.py`, or any Python packaging.
-
-| Reference | What it covers |
-|---|---|
-| `toolchain.md` | uv, ruff, mypy, pytest, nox, justfiles |
-| `tdd-workflow.md` | TDD cycle with mandatory verification after every change |
-| `cli-scripts.md` | Standalone script conventions (uv inline metadata, `#!/usr/bin/env -S uv run`) |
-| `documentation.md` | RST docstrings, Sphinx compatibility, type hint standards |
-
-Core requirements: type hints everywhere, absolute imports only, RST docstrings on public interfaces, uv-based workflows, ruff for formatting/linting, strict mypy.
-
 ## Installation
 
 ### Add the marketplace
@@ -57,7 +43,6 @@ Once the marketplace is registered, install whichever plugins you want:
 
 ```
 /plugin install bpe@mmegger-plugins
-/plugin install python@mmegger-plugins
 ```
 
 ### Browse available plugins
@@ -86,8 +71,6 @@ To pull the latest changes from this repository:
 - `bpe/agents/`: subagents dispatched by `/bpe:goal` (`step-executor`, `validator`)
 - `bpe/scripts/`: bundled helper scripts (e.g. `review-server.py` for `/bpe:review`)
 - `bpe/references/`: plugin-bundled reference docs that skills read directly (e.g. `session-management.md`)
-- `python/.claude-plugin/plugin.json`: Python plugin manifest
-- `python/skills/python/`: the `python` skill (SKILL.md plus reference docs for toolchain, CLI scripts, documentation, and TDD workflow)
 
 ## Prerequisites
 
