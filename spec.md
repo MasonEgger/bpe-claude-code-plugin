@@ -556,3 +556,30 @@ For UI-shaped or design-heavy projects, brainstorm gains an optional "mockup or 
 
 - No change to the autonomous-loop contracts (sequential dispatch, one-commit finalize, SHA verification, findings schema); their cross-file repetition is deliberate defense-in-depth for fresh-context agents.
 - No re-litigating the 0.6.x design decisions above; this package layers on top.
+
+## /bpe:init (2026-07-26, requested)
+
+Mason's ask, verbatim intent: profile and repo setup must be codified, not silently configured by an agent editing user-local files ad hoc.
+
+### Goal
+
+A `/bpe:init` skill that interactively prepares a user and a repo for BPE work, then writes the results to their proper homes.
+Two concerns, both owned by init:
+
+1. **Model profile setup.** Walk the user through the tier map (AskUserQuestion, one question per role group): spec-shaping skills, validator, step-executor/execute-plan, cheap-research. Offer the current Recommended Tier Map from references/model-profiles.md as the default answers, with the frontmatter defaults and full-alias setups as alternatives. Ask scope (user-global ~/.claude/bpe.local.md vs per-project .claude/bpe.local.md) and whether to define a second profile (work). Write the file; never commit it; confirm .gitignore covers .claude/*.local.md when writing per-project.
+2. **Repo pre-flight setup.** Everything /bpe:goal refuses on becomes something init fixes with consent: gitignore entries for commit-msg.md and goal.md, .ai-sessions/ creation, and a verification-command probe (manifest autodetect, else prompt) recorded to spec.md's Available tooling section when a spec exists.
+
+### Design decisions (proposed, confirm at review)
+
+- Decision: name is `/bpe:init` despite the built-in /init; the namespace disambiguates, and the concept (initialize this context for BPE) matches user expectation. (confirm at review)
+- Decision: init reads the Recommended Tier Map section at runtime rather than hardcoding model IDs, so the skill never goes stale when the map updates. (confirm at review)
+- Decision: init is re-runnable: it shows current resolved state (existing profile file, existing gitignore entries) and edits rather than overwrites; an existing profile is never clobbered without showing a diff first. (confirm at review)
+- Decision: init does NOT touch skill/agent frontmatter defaults; those remain the shipped tiers, and profiles remain the only per-user override layer (Goal 11 unchanged). (confirm at review)
+
+### Verification
+
+skill-creator triggering eval (should fire on "set up bpe", "bpe init", "configure bpe models"; not on generic /init asks); manual smoke test in a throwaway repo (fresh init, re-run idempotence, per-project vs global scope); profile file it writes passes the model-profiles.md schema.
+
+### Sequencing
+
+Layers on the 0.6.x line after the fable-alignment package or alongside it; touches no autonomous-loop contracts.

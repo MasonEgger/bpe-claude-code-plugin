@@ -8,6 +8,12 @@ active_profile: personal
 
 # Named profiles. Names are yours to choose; `personal` and `work` are the
 # conventional pair. Each profile carries optional skills: and agents: maps.
+#
+# The example values below follow the recommended tier map in
+# bpe/references/model-profiles.md (dated 2026-07-26): frontier model for
+# spec-shaping and adversarial review, the near-frontier tier for bounded
+# execution, a mid tier for research. Re-check that section when a new model
+# generation ships; pinned IDs go stale by design and the date is the tell.
 profiles:
   personal:
     # Skill overrides. Keys are bare skill names as they appear in
@@ -17,18 +23,30 @@ profiles:
     # Skills you leave out fall back to their frontmatter model: default,
     # so list only the overrides that differ.
     skills:
-      brainstorm: claude-opus-4-7        # pinned ID: always this exact model
-      apply-review: claude-opus-4-7
+      brainstorm: claude-fable-5         # spec-shaping: ambiguity wants the frontier
+      retrofit: claude-fable-5
+      plan: claude-fable-5
+      review: claude-fable-5
+      apply-review: claude-fable-5
+      execute-plan: claude-opus-5        # bounded execution: near-frontier at half cost
     # Agent overrides. Keys are bare agent names as they appear in
     # bpe/agents/<name>.md (`validator`, not `bpe:validator`).
     agents:
-      validator: claude-opus-4-7
+      validator: claude-fable-5          # adversarial review: strongest judgment
+      step-executor: claude-opus-5
+      cheap-research: sonnet             # alias: latest Sonnet
   work:
+    # Alias-only: environments without frontier access ride each family's
+    # latest release automatically.
     skills:
-      brainstorm: opus                    # alias: latest available Opus here
+      brainstorm: opus
+      retrofit: opus
+      plan: opus
+      review: opus
       apply-review: opus
     agents:
       validator: opus
+      cheap-research: sonnet
 ---
 
 # BPE Profile Settings
@@ -43,3 +61,4 @@ The real settings file is user-local state.
 Never commit it: add `.claude/*.local.md` to your `.gitignore`.
 
 Canonical schema and lookup precedence: `bpe/references/model-profiles.md` in the BPE plugin.
+The recommended tier map and its caveats (dated, revisited each model generation) live in that file's "Recommended tier map" section.

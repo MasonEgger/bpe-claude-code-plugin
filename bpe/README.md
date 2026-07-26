@@ -110,7 +110,9 @@ Quick start:
 
 1. Copy [`.claude/bpe.local.md.example`](../.claude/bpe.local.md.example) from this repo's root to `~/.claude/bpe.local.md` (user-global) or to `.claude/bpe.local.md` in a project (per-project; shadows the user-global file key by key).
 2. Set `active_profile` to the profile you want live.
-3. Add per-skill or per-agent overrides under that profile. Values are family aliases (`opus`, `sonnet`, `haiku`) or pinned model IDs (`claude-opus-4-7`). Anything you leave out falls back to the frontmatter default, so list only what differs.
+3. Add per-skill or per-agent overrides under that profile. Values are family aliases (`opus`, `sonnet`, `haiku`) or pinned model IDs (`claude-fable-5`, `claude-opus-5`). Anything you leave out falls back to the frontmatter default, so list only what differs.
+
+The dated, maintained recommendation for which model belongs in which role lives in [references/model-profiles.md](references/model-profiles.md) under "Recommended Tier Map"; the example file mirrors it.
 
 The `BPE_PROFILE` environment variable switches profiles per shell: `BPE_PROFILE=work claude` selects the `work` profile for that session regardless of what the files say.
 
