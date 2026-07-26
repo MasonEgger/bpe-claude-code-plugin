@@ -9,11 +9,6 @@
       "name": "bpe",
       "source": "./bpe",
       "description": "BPE (Brainstorm-Plan-Execute) development workflow with session tracking and lessons learned"
-    },
-    {
-      "name": "python",
-      "source": "./python",
-      "description": "Python development standards, toolchain preferences, and coding conventions for modern Python projects"
     }
   ]
 }
