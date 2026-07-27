@@ -10,11 +10,11 @@ Track structured session history and accumulated lessons in the project's `.ai-s
 
 All session artifacts live in `.ai-sessions/` at the project root:
 
-- `.ai-sessions/lessons.md` — accumulated cross-session learnings
-- `.ai-sessions/session-{YYYYMMDD}-{HHMM}-{slug}.md` — individual session summaries (e.g. `session-20260101-0900-plugin-setup.md`)
-- `.ai-sessions/handoffs/handoff-{YYYYMMDD}-{HHMM}-{slug}.md` — short-lived forward-looking documents written by `/bpe:handoff` (see "Handoff files" below)
-- `.ai-sessions/implementation-notes.md` — gitignored mid-step deviations log written by `bpe:step-executor` (see "implementation-notes.md Format" below)
-- `.ai-sessions/{slug}/` — one archived plan per directory, written by `/bpe:plan --archive`; holds the retired `plan.md`, `todo.md`, and an `accomplishment.md` (see "Plan Archives (accomplishment.md)" below)
+- `.ai-sessions/lessons.md`: accumulated cross-session learnings
+- `.ai-sessions/session-{YYYYMMDD}-{HHMM}-{slug}.md`: individual session summaries (e.g. `session-20260101-0900-plugin-setup.md`)
+- `.ai-sessions/handoffs/handoff-{YYYYMMDD}-{HHMM}-{slug}.md`: short-lived forward-looking documents written by `/bpe:handoff` (see "Handoff files" below)
+- `.ai-sessions/implementation-notes.md`: gitignored mid-step deviations log written by `bpe:step-executor` (see "implementation-notes.md Format" below)
+- `.ai-sessions/{slug}/`: one archived plan per directory, written by `/bpe:plan --archive`; holds the retired `plan.md`, `todo.md`, and an `accomplishment.md` (see "Plan Archives (accomplishment.md)" below)
 
 Create the directory with `mkdir -p .ai-sessions` (or `mkdir -p .ai-sessions/handoffs`) if it does not exist.
 
@@ -85,7 +85,7 @@ _Omit this section entirely if the session was not driven by `/goal` / `/bpe:goa
 
 ## Suggested Skills for Next Session
 
-- {Skill name (e.g. `python:python`) — one-line note on why it matters for the likely next step}
+- {Skill name (e.g. `python:python`): one-line note on why it matters for the likely next step}
 - ...
 ```
 
@@ -93,16 +93,16 @@ _Omit this section entirely if the session was not driven by `/goal` / `/bpe:goa
 
 Include the **Goal Context** section only when the session was driven by `/goal` (typically set up via `/bpe:goal`). Detect this by checking whether a `/goal …` invocation appears in the conversation, or whether the orchestrator-loop pattern from `/bpe:goal` was used. Populate from what's visible in the parent transcript:
 
-- **Condition** — copy the exact condition string from the `/goal` invocation. If multiple goals ran in one session, list each.
-- **Mode** — read from the orchestrator block's "Mode:" line, or infer (`step` if one item, `section` if one labeled group, `full` if the whole plan).
-- **Outcome** — `converged` if the evaluator declared success; `cleared by user` if `/goal clear` was run; `failed` (with reason) if the loop stopped on a subagent `Failure:` report; `spun` if it kept going without making progress.
-- **Turn count / dispatches / steps** — count from the transcript. Approximate is fine.
+- **Condition**: copy the exact condition string from the `/goal` invocation. If multiple goals ran in one session, list each.
+- **Mode**: read from the orchestrator block's "Mode:" line, or infer (`step` if one item, `section` if one labeled group, `full` if the whole plan).
+- **Outcome**: `converged` if the evaluator declared success; `cleared by user` if `/goal clear` was run; `failed` (with reason) if the loop stopped on a subagent `Failure:` report; `spun` if it kept going without making progress.
+- **Turn count / dispatches / steps**: count from the transcript. Approximate is fine.
 
 Omit any individual field that's genuinely unknowable. Omit the whole section if no goal ran.
 
 ### Suggested Skills Populating Rule
 
-The "Suggested Skills for Next Session" section gives the next `/bpe:execute-plan` run an explicit hint about which skills to invoke at its hardened skill-loading step. Populate it based on what the *next* step needs — not a log of what the current session loaded. Include a skill if the next step will need it (whether or not the current session used it); omit a skill the current session used incidentally if the next step will not need it. For example, if the current session edited Python tooling but the next step is documentation cleanup, omit `python:python` and include only the docs-relevant skills. Omit the section entirely only if the next session genuinely needs no skills.
+The "Suggested Skills for Next Session" section gives the next `/bpe:execute-plan` run an explicit hint about which skills to invoke at its hardened skill-loading step. Populate it based on what the *next* step needs, not a log of what the current session loaded. Include a skill if the next step will need it (whether or not the current session used it); omit a skill the current session used incidentally if the next step will not need it. For example, if the current session edited Python tooling but the next step is documentation cleanup, omit `python:python` and include only the docs-relevant skills. Omit the section entirely only if the next session genuinely needs no skills.
 
 ## Lessons Learned (lessons.md)
 
@@ -117,7 +117,7 @@ Each lesson entry includes a date in parentheses: `- Lesson text (YYYY-MM-DD)`
 
 ### Lessons.md Template
 
-Use this skeleton when initializing a new `lessons.md`. Category sections are created on demand — the template intentionally does not prescribe a fixed set. Categories are flat top-level (`##`) headings; do not nest them under a `## Categories` parent.
+Use this skeleton when initializing a new `lessons.md`. Category sections are created on demand; the template intentionally does not prescribe a fixed set. Categories are flat top-level (`##`) headings; do not nest them under a `## Categories` parent.
 
 ```markdown
 # Lessons Learned
@@ -143,25 +143,25 @@ Omit categories with zero entries.
 
 When identifying lessons from a session:
 
-1. Focus on **specific, actionable insights** — not generic advice.
+1. Focus on **specific, actionable insights**, not generic advice.
 2. Prefer concrete over abstract: "Use `just check` instead of running linters individually" beats "Run linters efficiently".
-3. **Deduplicate** against existing entries — update wording and date if substantially similar.
-4. Keep the Recent section to 10 entries maximum — move older entries to categories only.
-5. Create new category headings as needed — use judgment for the most specific fit.
+3. **Deduplicate** against existing entries; update wording and date if substantially similar.
+4. Keep the Recent section to 10 entries maximum; move older entries to categories only.
+5. Create new category headings as needed; use judgment for the most specific fit.
 
 ### Category Guidelines
 
-- Create categories as needed — the list above is a starting point, not exhaustive.
+- Create categories as needed; the list above is a starting point, not exhaustive.
 - A lesson belongs in the most specific applicable category.
-- If a lesson fits multiple categories, pick one — avoid duplicating across categories.
+- If a lesson fits multiple categories, pick one; avoid duplicating across categories.
 - Categories with zero entries can be omitted from the file.
 - Common additional categories: Infrastructure, Documentation, Performance, Security, DevOps, Plugin Development.
 
 ### Lesson Quality Examples
 
 **Good lessons (specific, actionable):**
-- Use `uv run --script` for standalone Python scripts — no virtualenv needed (2026-02-24)
-- The ruff formatter handles import sorting — no need to configure isort separately (2026-02-25)
+- Use `uv run --script` for standalone Python scripts; no virtualenv needed (2026-02-24)
+- The ruff formatter handles import sorting; no need to configure isort separately (2026-02-25)
 - Always read the most recent `.ai-sessions/` summary before starting execute-plan (2026-02-25)
 - Ansible `--check` flag prevents accidental changes during testing (2026-02-24)
 
@@ -173,13 +173,13 @@ When identifying lessons from a session:
 
 ## Integration with BPE Workflow
 
-### `/bpe:execute-plan` Step 2 — Find the Most Recent Summary
+### `/bpe:execute-plan` Step 2: Find the Most Recent Summary
 
-Before beginning work in `/bpe:execute-plan`, check whether `.ai-sessions/` exists. If it does, identify the most recent session summary by sorting filenames lexicographically — the embedded `{YYYYMMDD}-{HHMM}` timestamp makes lexicographic order equal chronological order. Do not rely on filesystem mtime, which can be misleading after edits or git operations. Read that summary in full before beginning implementation.
+Before beginning work in `/bpe:execute-plan`, check whether `.ai-sessions/` exists. If it does, identify the most recent session summary by sorting filenames lexicographically; the embedded `{YYYYMMDD}-{HHMM}` timestamp makes lexicographic order equal chronological order. Do not rely on filesystem mtime, which can be misleading after edits or git operations. Read that summary in full before beginning implementation.
 
-### `/bpe:execute-plan` Step 3 — Honor "Suggested Skills for Next Session"
+### `/bpe:execute-plan` Step 3: Honor "Suggested Skills for Next Session"
 
-If the latest summary contains a "Suggested Skills for Next Session" section, treat its entries as inputs to the hardened skill-loading step. Invoke those skills in addition to any the agent identifies from the current tech stack — the previous session's recommendation is a hint, not a cap.
+If the latest summary contains a "Suggested Skills for Next Session" section, treat its entries as inputs to the hardened skill-loading step. Invoke those skills in addition to any the agent identifies from the current tech stack; the previous session's recommendation is a hint, not a cap.
 
 ### Relationship to `/bpe:handoff`
 
@@ -198,16 +198,16 @@ Handoff files follow the pattern: `.ai-sessions/handoffs/handoff-{timestamp}-{sl
 
 Handoffs follow a three-step lifecycle, each step driven by an explicit subcommand:
 
-1. `/bpe:handoff create [focus]` — write the document at the end of a session.
-2. `/bpe:handoff continue` — at the start of the next session, read the document and prime the conversation. This is pure-read; it does not delete the file.
-3. `/bpe:handoff close` — delete the document once the handoff has been picked up and is no longer useful. This is the primary cleanup path.
+1. `/bpe:handoff create [focus]`: write the document at the end of a session.
+2. `/bpe:handoff continue`: at the start of the next session, read the document and prime the conversation. This is pure-read; it does not delete the file.
+3. `/bpe:handoff close`: delete the document once the handoff has been picked up and is no longer useful. This is the primary cleanup path.
 
 `/bpe:session-summary` keeps a safety-net scan: at the end of a session, it checks `.ai-sessions/handoffs/` for any leftover `.md` files and prompts the user about cleanup, so stale handoffs do not slip into a commit if `close` was forgotten.
 
 ### Cleanup paths
 
-- **Primary**: `/bpe:handoff close` — explicit deletion after the handoff has been consumed.
-- **Safety net**: `/bpe:session-summary` — end-of-session scan that prompts about any remaining handoffs.
+- **Primary**: `/bpe:handoff close`, explicit deletion after the handoff has been consumed.
+- **Safety net**: `/bpe:session-summary`, end-of-session scan that prompts about any remaining handoffs.
 
 In both cases: default to keep on uncertainty; delete only on explicit confirmation.
 

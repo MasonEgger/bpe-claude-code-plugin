@@ -22,7 +22,7 @@ This plugin packages the BPE loop - a structured workflow for building software 
 | `/bpe:apply-review` | Load saved review feedback and apply changes to the reviewed artifact |
 | `/bpe:lessons` | View, search, and manage accumulated lessons |
 | `/bpe:wtf-wid` | WTF was I doing? Tight, fits-on-screen recap of the current session for fast re-entry |
-| `/bpe:goal` | Wrap the BPE loop in a `/goal`-driven autonomous run. Pre-flights safety, writes the `/goal` argument to `goal.md` — run with `/goal @goal.md` |
+| `/bpe:goal` | Wrap the BPE loop in a `/goal`-driven autonomous run. Pre-flights safety, writes the `/goal` argument to `goal.md`. Run with `/goal @goal.md` |
 
 As of 0.6.0, BPE commands are implemented as skills.
 Invocation is unchanged: each `/bpe:<name>` above works exactly as before.
@@ -78,25 +78,25 @@ flowchart TD
 
 Modes:
 
-- `full` (default) — converges only when every item in `todo.md` is checked off and tests pass. The main use case.
-- `section <name>` — converges after every item in a labeled section is checked off.
-- `step` — converges after one item. Rarely useful; for a single interactive step, use `/bpe:execute-plan` instead. `step` is here for the case where you want the autonomous-mode contracts (SHA verification, session-summary-per-commit, push) on one item.
+- `full` (default): converges only when every item in `todo.md` is checked off and tests pass. The main use case.
+- `section <name>`: converges after every item in a labeled section is checked off.
+- `step`: converges after one item. Rarely useful; for a single interactive step, use `/bpe:execute-plan` instead. `step` is here for the case where you want the autonomous-mode contracts (SHA verification, session-summary-per-commit, push) on one item.
 
 Hard guarantees:
 
 - **Refuses to run on `main`/`master`.** Create a feature branch first.
 - The subagent commits with `git commit -S -F commit-msg.md`, then `git push`. If push fails, it stops cleanly with a `Failure:` report.
-- Each subagent dispatch is a fresh context — no compaction, no /clear required.
+- Each subagent dispatch is a fresh context: no compaction, no /clear required.
 - Interrupted dispatches (usage-limit pause, crash, killed subagent) never leave half-finished work behind: on the next turn the orchestrator resets the tree to the last commit (`git reset --hard && git clean -fd`) and redoes the item from `mode=implement`. The commit is the only durable unit.
 - `/goal clear` is the escape hatch. Subagent reports remain in the transcript for review.
 
-`/bpe:goal` writes the assembled `/goal` argument to `goal.md` at the repo root: the condition followed by a trimmed orchestrator playbook, together under `/goal`'s 4000-character cap. You then run `/goal @goal.md` — Claude Code's `@` expansion inlines the file contents as the `/goal` argument, so no copy-paste is needed. The condition leads (the evaluator focuses on its AND clauses); the playbook follows in the same message and tells the parent session how to drive the loop. `goal.md` is intended to be gitignored — `/bpe:goal` refuses to run if it isn't. The file MUST NOT start with `/goal ` since `@goal.md` already supplies the argument; the command writes the body only.
+`/bpe:goal` writes the assembled `/goal` argument to `goal.md` at the repo root: the condition followed by a trimmed orchestrator playbook, together under `/goal`'s 4000-character cap. You then run `/goal @goal.md`. Claude Code's `@` expansion inlines the file contents as the `/goal` argument, so no copy-paste is needed. The condition leads (the evaluator focuses on its AND clauses); the playbook follows in the same message and tells the parent session how to drive the loop. `goal.md` is intended to be gitignored; `/bpe:goal` refuses to run if it isn't. The file MUST NOT start with `/goal ` since `@goal.md` already supplies the argument; the command writes the body only.
 
 Three hard contracts the orchestrator enforces:
 
 - **SEQUENTIAL DISPATCHES ONLY.** Exactly one `Agent(subagent_type="bpe:step-executor")` per turn. The Agent tool's standard guidance encourages parallel dispatches for independent work; that guidance does NOT apply here because todo.md items share state (todo.md checkmarks, git state, the test suite). Parallel dispatches corrupt all three. The orchestrator block emitted by `/bpe:goal` explicitly forbids parallel dispatches; the subagent has a defense-in-depth pre-flight that aborts on a non-empty `git status --short` (which a concurrent subagent would leave).
 - **Every commit in the loop must include a new `.ai-sessions/session-*.md`.** After each subagent dispatch, the orchestrator parses the `Commit:` SHA from the report and verifies that exact commit (not `HEAD`, which is unreliable if anything raced) contains a session summary. Stops on miss.
-- **Exactly one commit per dispatch.** No follow-ups, no fixups, no amends, no `--no-verify`. If a subagent discovers something needs fixing after its commit lands, that's a `Failure:` — the orchestrator does NOT make the follow-up.
+- **Exactly one commit per dispatch.** No follow-ups, no fixups, no amends, no `--no-verify`. If a subagent discovers something needs fixing after its commit lands, that's a `Failure:`; the orchestrator does NOT make the follow-up.
 
 Put your session into auto mode before pasting so subagent tool calls don't prompt you mid-loop. The exact mechanism depends on your client (TUI users typically toggle this with a keyboard shortcut).
 
@@ -128,10 +128,10 @@ Install via the marketplace registered in this repo:
 
 ```
 /plugin marketplace add MasonEgger/bpe-claude-code-plugin
-/plugin install bpe@mmegger-plugins
+/plugin install bpe@bpe
 ```
 
-See the [top-level README](../README.md) for the full plugin list and marketplace details.
+See the [top-level README](../README.md) for marketplace details and upgrade notes.
 
 ## Reference
 
