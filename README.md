@@ -34,7 +34,7 @@ The BPE loop: Brainstorm a spec through dialogue, Plan it into right-sized TDD s
 Register this repository as a Claude Code marketplace:
 
 ```
-/plugin marketplace add MasonEgger/claude-code-plugin
+/plugin marketplace add MasonEgger/bpe-claude-code-plugin
 ```
 
 ### Install plugins

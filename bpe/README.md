@@ -127,7 +127,7 @@ Keep `.claude/*.local.md` in your `.gitignore` (this repo's covers it).
 Install via the marketplace registered in this repo:
 
 ```
-/plugin marketplace add MasonEgger/claude-code-plugin
+/plugin marketplace add MasonEgger/bpe-claude-code-plugin
 /plugin install bpe@mmegger-plugins
 ```
 
