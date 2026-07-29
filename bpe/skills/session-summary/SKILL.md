@@ -2,7 +2,6 @@
 name: session-summary
 description: Generate session recap in .ai-sessions/ and capture lessons learned
 model: sonnet
-disable-model-invocation: true
 ---
 
 # Session Summary Command

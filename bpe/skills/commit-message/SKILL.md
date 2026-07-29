@@ -4,7 +4,6 @@ description: Generate a commit message explaining what was changed and write it 
 argument-hint: optional focus hint (e.g. "the spec rewrite, not the formatting fixes")
 allowed-tools: Bash(git:*), Read, Write
 model: sonnet
-disable-model-invocation: true
 ---
 
 # Commit Message Command
