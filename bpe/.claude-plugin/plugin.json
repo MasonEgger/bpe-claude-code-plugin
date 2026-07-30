@@ -1,6 +1,6 @@
 {
   "name": "bpe",
-  "version": "0.6.2",
+  "version": "0.6.3",
   "description": "BPE (Brainstorm-Plan-Execute) development workflow: spec-driven TDD, autonomous multi-step runs with a validation gate, and cross-session continuity",
   "author": {
     "name": "Mason Egger",

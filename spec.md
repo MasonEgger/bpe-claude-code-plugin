@@ -237,7 +237,7 @@ Reusable across `/bpe:plan` (external tool discovery), `/bpe:brainstorm` (initia
 
 ### Goal 11: Model tier enforcement via skill migration
 
-Migrate all `bpe/commands/*.md` files to `bpe/skills/<name>/SKILL.md`. Add `disable-model-invocation: true` and a `model:` field per skill. Update subagent frontmatter for tier enforcement.
+Migrate all `bpe/commands/*.md` files to `bpe/skills/<name>/SKILL.md`. Add `disable-model-invocation: true` and a `model:` field per skill. Update subagent frontmatter for tier enforcement. (The blanket invocation flag was later narrowed to the workflow-entry skills; see the rule below the tier table.)
 
 Skill tier assignments:
 
@@ -257,7 +257,11 @@ Skill tier assignments:
 | goal | sonnet | Single-turn (writes goal.md and exits) |
 | gh-issue | sonnet | Single-turn |
 
-All skills carry `disable-model-invocation: true` (BPE actions are user-initiated; auto-triggering is a bug not a feature).
+Skills that open a BPE workflow carry `disable-model-invocation: true`: `brainstorm`, `retrofit`, `plan`, `execute-plan`, `goal`, `gh-issue`, `apply-review`, `handoff`, `lessons`. Starting one of those is the user's decision, and auto-triggering it is a bug not a feature. `lessons` stays blocked for a second reason: its `promote` mode writes into `~/.claude/rules/`, outside the repo.
+
+Four skills omit the flag and may be model-invoked: `session-summary`, `commit-message`, `review`, `wtf-wid`. These are steps inside work the agent is already doing rather than entry points into it, and none of them asks the user a question. Blocking the first two made the commit ritual in the user's global CLAUDE.md (`/bpe:session-summary` then `/bpe:commit-message`) impossible for an agent to execute, which is what prompted the split.
+
+The flag is a main-loop control only. Subagents cannot invoke slash commands at all, so `bpe:step-executor` reads the relevant `SKILL.md` and executes its procedure inline regardless of this setting (see `references/step-executor-protocol.md`).
 
 Subagent tier assignments (frontmatter in `bpe/agents/*.md`):
 
