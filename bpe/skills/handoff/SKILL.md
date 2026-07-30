@@ -8,13 +8,13 @@ disable-model-invocation: true
 
 # Handoff Command
 
-Manage forward-looking handoff documents that let a fresh agent pick up where the current conversation left off. Handoffs are short-lived and live under `.ai-sessions/handoffs/` — they are not session summaries. For durable, backwards-looking session records, use `/bpe:session-summary` instead.
+Manage forward-looking handoff documents that let a fresh agent pick up where the current conversation left off. Handoffs are short-lived and live under `.ai-sessions/handoffs/`; they are not session summaries. For durable, backwards-looking session records, use `/bpe:session-summary` instead.
 
 This command has three subcommands:
 
-- `create [focus]` — write a new handoff document. The optional focus describes what the next session will work on; it tailors the handoff toward that thread.
-- `continue` — read an existing handoff and prime the current conversation with its contents. Does not delete the file.
-- `close` — delete a consumed handoff file. Run this once the work described in the handoff has been picked up and the file is no longer useful.
+- `create [focus]`: write a new handoff document. The optional focus describes what the next session will work on; it tailors the handoff toward that thread.
+- `continue`: read an existing handoff and prime the current conversation with its contents. Does not delete the file.
+- `close`: delete a consumed handoff file. Run this once the work described in the handoff has been picked up and the file is no longer useful.
 
 ## Argument Routing
 
@@ -52,7 +52,7 @@ Do not Read the path first; the file does not exist yet and Read errors on missi
 
 ## Step 2: Tailor to the Next Session's Focus
 
-If a focus argument was passed, treat it as a description of what the next session will work on. Tailor the handoff toward that focus — emphasize the threads of the current conversation that matter for the stated next step, and elide the rest.
+If a focus argument was passed, treat it as a description of what the next session will work on. Tailor the handoff toward that focus: emphasize the threads of the current conversation that matter for the stated next step, and elide the rest.
 
 If no focus was passed, write a general-purpose handoff covering the live state of the conversation.
 
@@ -63,11 +63,11 @@ Include these sections, in this order:
 ### Current State
 - What is done, what is in progress, and what is queued next.
 - Branch name, last commit SHA, and whether work is pushed.
-- Files in flight — paths to anything created or modified this session, especially uncommitted work.
+- Files in flight: paths to anything created or modified this session, especially uncommitted work.
 
 ### Open Decisions and Blockers
 - Anything awaiting input from the user or another agent.
-- Trade-offs the current session deferred — what was chosen, what was rejected, and why.
+- Trade-offs the current session deferred: what was chosen, what was rejected, and why.
 
 ### Suggested Goal (optional)
 
@@ -77,10 +77,10 @@ If the next session is a strong candidate for autonomous-mode execution (clear u
 Suggested Goal: /bpe:goal section <name>
 ```
 
-or the full pre-built `/goal …` condition if you already know it. Omit this section if the next step needs human judgment, design decisions, or anything a `bpe:step-executor` subagent could not handle on its own. When in doubt, omit — false-positive Suggested Goals waste a run.
+or the full pre-built `/goal …` condition if you already know it. Omit this section if the next step needs human judgment, design decisions, or anything a `bpe:step-executor` subagent could not handle on its own. When in doubt, omit; false-positive Suggested Goals waste a run.
 
 ### Suggested Skills for the Next Session
-- List the specific skills the next agent should invoke before starting work, selected by what the next step needs — not a log of what this session loaded. Examples: `python:python`, `temporal:temporal-developer`. Include a skill if the continuation will need it (whether or not the current session used it); omit a skill that was useful this session but is irrelevant to the next step. This matches the populating rule in `${CLAUDE_PLUGIN_ROOT}/references/session-management.md`.
+- List the specific skills the next agent should invoke before starting work, selected by what the next step needs, not a log of what this session loaded. Examples: `python:python`, `temporal:temporal-developer`. Include a skill if the continuation will need it (whether or not the current session used it); omit a skill that was useful this session but is irrelevant to the next step. This matches the populating rule in `${CLAUDE_PLUGIN_ROOT}/references/session-management.md`.
 - Note project-stack-specific skills that the next step will need, with a one-line reason each.
 
 ### Pointers, Not Content
@@ -88,7 +88,7 @@ or the full pre-built `/goal …` condition if you already know it. Omit this se
 - Reference issues and PRs by URL or `gh` invocation.
 - Reference commits and diffs by SHA, branch range, or `git log`/`git diff` invocation.
 - Reference existing session summaries in `.ai-sessions/` by filename.
-- Reference `.ai-sessions/lessons.md` when a relevant cross-session lesson applies — by filename plus the category heading or quoted lesson, not by restating the lesson body.
+- Reference `.ai-sessions/lessons.md` when a relevant cross-session lesson applies: by filename plus the category heading or quoted lesson, not by restating the lesson body.
 
 ### Anti-Duplication Rule
 
@@ -106,7 +106,7 @@ After writing the handoff, display:
 
 # Continue Mode
 
-Read an existing handoff and prime the current conversation with its contents. This mode is pure-read — it does not delete the file. Use `/bpe:handoff close` once the handoff has been fully consumed and is no longer needed.
+Read an existing handoff and prime the current conversation with its contents. This mode is pure-read; it does not delete the file. Use `/bpe:handoff close` once the handoff has been fully consumed and is no longer needed.
 
 ## Step 1: Locate the Handoff
 
@@ -131,7 +131,7 @@ Read the chosen handoff in full. Then, in user-facing text, summarize:
 
 ## Step 3: Invoke Suggested Skills
 
-For each skill listed in the handoff's "Suggested Skills for the Next Session" section, invoke it via the `Skill` tool before proceeding. Bias toward invoking — double-loading is harmless, skipping is not. Auto-loaded CLAUDE.md rules are not equivalent to invoked skills.
+For each skill listed in the handoff's "Suggested Skills for the Next Session" section, invoke it via the `Skill` tool before proceeding. Bias toward invoking; double-loading is harmless, skipping is not. Auto-loaded CLAUDE.md rules are not equivalent to invoked skills.
 
 State the invocations in user-facing text: "Invoked: <skill names>" or "No skills listed in the handoff."
 
@@ -171,4 +171,4 @@ On explicit confirmation, remove the file:
 rm <path-to-handoff>
 ```
 
-Report the deletion in user-facing text. If multiple handoffs were present and only one was closed, leave the others in place — they are out of scope for this invocation.
+Report the deletion in user-facing text. If multiple handoffs were present and only one was closed, leave the others in place; they are out of scope for this invocation.

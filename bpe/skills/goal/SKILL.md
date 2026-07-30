@@ -1,6 +1,6 @@
 ---
 name: goal
-description: Autonomous-mode BPE run via /goal. Modes — full (default) | section <name> | step. Pre-flights branch safety (refuses on main, requires a clean tree), resolves the project verification command (test-runner autodetect, spec.md fallback, or ask), builds a verifiable completion condition, and writes the assembled /goal block (condition + validator-aware orchestrator playbook + per-commit verification) to goal.md at the repo root for you to paste. Requires Claude Code v2.1.139+; put your session in auto mode before pasting for unattended execution.
+description: Autonomous-mode BPE run via /goal. Modes are full (default) | section <name> | step. Pre-flights branch safety (refuses on main, requires a clean tree), resolves the project verification command (test-runner autodetect, spec.md fallback, or ask), builds a verifiable completion condition, and writes the assembled /goal block (condition + validator-aware orchestrator playbook + per-commit verification) to goal.md at the repo root for you to paste. Requires Claude Code v2.1.139+; put your session in auto mode before pasting for unattended execution.
 argument-hint: [full | section <name> | step]
 model: sonnet
 disable-model-invocation: true
@@ -16,9 +16,9 @@ Set up a `/goal`-driven autonomous BPE run. The parent session orchestrates; eac
 
 Parse `$ARGUMENTS`:
 
-- empty or `full` — autonomous to the end of `todo.md`. **Default.** Use when you trust the plan and have time / quota.
-- `section <name>` — autonomous through one labeled section of `todo.md`. A section is a top-level Markdown heading or an explicit comment block like `<!-- section: foo -->`.
-- `step` — autonomous through ONE step. Rarely the right tool; for a single interactive step, `/bpe:execute-plan` is simpler. Use `step` only when you want the autonomous-mode contracts (SHA verification, session-summary-per-commit, push, validator pass) on a single item without driving it yourself.
+- empty or `full`: autonomous to the end of `todo.md`. **Default.** Use when you trust the plan and have time / quota.
+- `section <name>`: autonomous through one labeled section of `todo.md`. A section is a top-level Markdown heading or an explicit comment block like `<!-- section: foo -->`.
+- `step`: autonomous through ONE step. Rarely the right tool; for a single interactive step, `/bpe:execute-plan` is simpler. Use `step` only when you want the autonomous-mode contracts (SHA verification, session-summary-per-commit, push, validator pass) on a single item without driving it yourself.
 
 State the routed mode in user-facing text before pre-flight.
 
@@ -88,7 +88,7 @@ Every item in todo.md is checked off; <test-cmd> exits 0 with no failing tests; 
 
 The user will run `/goal @goal.md`. Claude Code's `@` expansion inlines the file contents as the `/goal` argument, so `goal.md` must contain ONLY the argument body. **The file MUST NOT start with `/goal `** or the expansion would produce `/goal /goal …`.
 
-Use the Write tool to overwrite `goal.md` at the repo root with exactly the content below. Substitute `<condition>`, `<mode>`, `<test-cmd>`, and `<branch>` from steps 1–2. **Plain text only; no fenced code block, no surrounding ruler lines, no leading `/goal `.** The file contents ARE the `/goal` argument:
+Use the Write tool to overwrite `goal.md` at the repo root with exactly the content below. Substitute `<condition>`, `<mode>`, `<test-cmd>`, and `<branch>` from steps 1-2. **Plain text only; no fenced code block, no surrounding ruler lines, no leading `/goal `.** The file contents ARE the `/goal` argument:
 
 ```
 <condition from step 2>

@@ -104,11 +104,11 @@ End your turn with EXACTLY the block for your mode, with no prose after it. Fiel
 ```
 Implement-Report:
 Mode:       implement
-Step:       <N> — <short description from todo.md>
+Step:       <N>: <short description from todo.md>
 Files:      <comma-separated paths, ≤120 chars, truncate with …>
 Tests:      <command> → <exit-code> (<short result, e.g. "12 passed">)
 Tree:       dirty (<insertions>+ <deletions>-)
-TodoDelta:  <e.g. "[x] step 3 — Add user model">
+TodoDelta:  <e.g. "[x] Step 3: Add user model">
 Ready:      for validation
 Blockers:   <none | <one-line description>>
 ```
@@ -134,13 +134,13 @@ Blockers:   <none | <one-line description>>
 ```
 Finalize-Report:
 Mode:       finalize
-Step:       <N> — <short description>
+Step:       <N>: <short description>
 Files:      <comma-separated paths, ≤120 chars, truncate with …>
 Tests:      <command> → <exit-code> (<short result>)
 Commit:     <short-sha> <subject ≤80 chars>
 Push:       <ok | failed: <reason>>
 Status:     <clean | dirty: <reason>>
-TodoDelta:  <e.g. "[x] step 3 — Add user model">
+TodoDelta:  <e.g. "[x] Step 3: Add user model">
 Lessons:    <added: <count> | none>
 Info-findings: <none | <count appended to commit body>>
 Blockers:   <none | <one-line description>>
@@ -149,13 +149,13 @@ Blockers:   <none | <one-line description>>
 ### Bundled (no Mode: line in dispatch)
 
 ```
-Step:       <N> — <short description from todo.md>
+Step:       <N>: <short description from todo.md>
 Files:      <comma-separated paths, ≤120 chars, truncate with …>
 Tests:      <command> → <exit-code> (<short result>)
 Commit:     <short-sha> <subject ≤80 chars>
 Push:       <ok | failed: <reason>>
 Status:     <clean | dirty: <reason>>
-TodoDelta:  <e.g. "[x] step 3 — Add user model">
+TodoDelta:  <e.g. "[x] Step 3: Add user model">
 Lessons:    <added: <count> | none>
 Blockers:   <none | <one-line description>>
 ```
@@ -164,7 +164,7 @@ Blockers:   <none | <one-line description>>
 
 ```
 Mode:       <implement | fix | finalize | bundled>
-Step:       <N> — <short description>
+Step:       <N>: <short description>
 Failure:    <one-line root cause>
 Action:     <what you tried, what's needed next>
 ```

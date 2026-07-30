@@ -55,11 +55,11 @@ The orchestrator and `/goal` evaluator parse these fields from the executor's re
 | Field | Purpose |
 |---|---|
 | `Mode:` | Routes the orchestrator's next dispatch decision. Value: `implement`. |
-| `Step:` | Which todo item this covers. `N — <description>`. |
+| `Step:` | Which todo item this covers. `N: <description>`. |
 | `Files:` | Comma-separated paths modified. Cap at 120 chars; truncate with `…`. |
 | `Tests:` | Test command + exit code + short result. Exit code must be `0`. |
 | `Tree:` | `dirty (<insertions>+ <deletions>-)`. Must be dirty; implement never commits. |
-| `TodoDelta:` | The `- [x] step N — <desc>` line that was checked off. |
+| `TodoDelta:` | The `- [x] Step N: <desc>` line that was checked off. |
 | `Ready:` | Fixed string `for validation`. |
 | `Blockers:` | `none` or one-line reason. |
 
@@ -104,7 +104,7 @@ Same shape as `Finalize-Report`, minus the `Mode:` and `Info-findings:` rows. Em
 
 ```
 Mode:       <implement | fix | finalize | bundled>
-Step:       <N — description>
+Step:       <N>: <description>
 Failure:    <one-line root cause>
 Action:     <what was tried, what's needed next>
 ```

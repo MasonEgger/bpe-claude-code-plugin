@@ -13,7 +13,7 @@ Create a complete session summary and capture lessons learned. This command perf
 
 ## Step 1: Load the Format Reference and Setup
 
-Read the canonical format reference at `${CLAUDE_PLUGIN_ROOT}/references/session-management.md`. Treat that file as the single source of truth for templates, naming conventions, and lesson capture guidance — do not restate or reinterpret its rules in this command.
+Read the canonical format reference at `${CLAUDE_PLUGIN_ROOT}/references/session-management.md`. Treat that file as the single source of truth for templates, naming conventions, and lesson capture guidance; do not restate or reinterpret its rules in this command.
 
 If `.ai-sessions/` does not exist, create it:
 ```bash
@@ -31,11 +31,11 @@ Create `.ai-sessions/session-{timestamp}-{slug}.md` per the naming convention an
 
 Populate every required section. Pull content from this conversation:
 - Header metadata (date, duration, conversation turns, estimated cost, model)
-- Goal Context (only if a `/goal` ran in this session — see "Goal Context Populating Rule" in the reference; omit the section entirely otherwise)
+- Goal Context (only if a `/goal` ran in this session, per "Goal Context Populating Rule" in the reference; omit the section entirely otherwise)
 - Key actions taken
 - Prompt inventory (table of user prompts → actions → outcomes)
 - Efficiency insights, process improvements, observations
-- Suggested skills for next session (which skills the next `/bpe:execute-plan` should invoke at its hardened skill-loading step — see "Suggested Skills Populating Rule" in the reference)
+- Suggested skills for next session (which skills the next `/bpe:execute-plan` should invoke at its hardened skill-loading step; see "Suggested Skills Populating Rule" in the reference)
 
 If `.ai-sessions/implementation-notes.md` exists and contains a `## Step <N>` section for the step this summary covers, extract its bullets and add a `## Deviations from Plan` section to the session summary with them.
 Then remove that `## Step N` section from `implementation-notes.md`: keep the file if other sections remain, else delete the file.
@@ -48,7 +48,7 @@ If the session has no clear single focus, use `mixed-work` as the slug.
 Update `.ai-sessions/lessons.md` per the rules in the format reference ("Capturing Lessons" and "Lessons.md Template" sections). In short:
 
 - If `lessons.md` does not exist, initialize it from the template in the reference.
-- Identify specific, actionable lessons from this session — not generic advice.
+- Identify specific, actionable lessons from this session, not generic advice.
 - Prepend new lessons to the `## Recent` section with a `(YYYY-MM-DD)` date suffix; cap Recent at 10 entries (move overflow into category-only).
 - Place each lesson under the most specific applicable category heading per the category guidelines in the reference. Create new category headings on demand.
 - Deduplicate against existing entries; update wording and date in place when substantially similar.
