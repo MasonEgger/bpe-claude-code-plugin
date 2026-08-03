@@ -281,10 +281,10 @@ active_profile: personal
 profiles:
   personal:
     skills:
-      brainstorm: claude-opus-4-7        # explicit Fable model ID
-      apply-review: claude-opus-4-7
+      brainstorm: claude-fable-5        # explicit model ID
+      apply-review: claude-fable-5
     agents:
-      validator: claude-opus-4-7
+      validator: claude-fable-5
   work:
     skills:
       brainstorm: opus                    # alias resolves to work-available Opus
@@ -454,7 +454,7 @@ Eleven independently implementable components. Component A must land first (boot
 
 **Verification:**
 - Example profile file loads without YAML parse errors.
-- Personal profile with `brainstorm: claude-opus-4-7` and current session on `claude-sonnet-4-6`: hook fires warning on `/bpe:brainstorm`.
+- Personal profile with `brainstorm: claude-fable-5` and current session on `claude-sonnet-5`: hook fires warning on `/bpe:brainstorm`.
 - `BPE_PROFILE=work` env var: work profile takes precedence over `active_profile: personal` in the file.
 - Absent profile file: no warnings; skills use their frontmatter defaults.
 
