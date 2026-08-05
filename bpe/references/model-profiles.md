@@ -60,7 +60,7 @@ Optional free-form context. Ignored by model resolution.
 - **`profiles.<name>.skills`** (map, optional): skill-name to model-value overrides. Keys are bare skill names as they appear in `bpe/skills/<name>/SKILL.md` (e.g. `brainstorm`, not `bpe:brainstorm`).
 - **`profiles.<name>.agents`** (map, optional): agent-name to model-value overrides. Keys are bare agent names as they appear in `bpe/agents/<name>.md` (e.g. `validator`, not `bpe:validator`).
 
-Model values accept anything the SKILL.md `model:` field accepts: family aliases (`opus`, `sonnet`, `haiku`) or explicit model IDs (`claude-opus-4-7`).
+Model values accept anything the SKILL.md `model:` field accepts: family aliases (`opus`, `sonnet`, `haiku`) or explicit model IDs (`claude-fable-5`).
 
 ## Lookup Precedence
 
@@ -92,10 +92,10 @@ active_profile: personal
 profiles:
   personal:
     skills:
-      brainstorm: claude-opus-4-7        # explicit model ID
-      apply-review: claude-opus-4-7
+      brainstorm: claude-fable-5        # explicit model ID
+      apply-review: claude-fable-5
     agents:
-      validator: claude-opus-4-7
+      validator: claude-fable-5
   work:
     skills:
       brainstorm: opus                    # alias resolves to work-available Opus
@@ -107,9 +107,9 @@ profiles:
 
 With this file at `~/.claude/bpe.local.md` and no per-project file:
 
-- `/bpe:brainstorm` resolves to `claude-opus-4-7` (personal profile, skills map hit).
+- `/bpe:brainstorm` resolves to `claude-fable-5` (personal profile, skills map hit).
 - `/bpe:plan` resolves to `opus` (no entry in the personal profile; frontmatter default).
-- A `bpe:validator` dispatch resolves to `claude-opus-4-7` (personal profile, agents map hit).
+- A `bpe:validator` dispatch resolves to `claude-fable-5` (personal profile, agents map hit).
 - `BPE_PROFILE=work /bpe:brainstorm` resolves to `opus` (env var selects the work profile).
 
 ## Recommended Tier Map

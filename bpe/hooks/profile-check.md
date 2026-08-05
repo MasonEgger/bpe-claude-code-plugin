@@ -73,6 +73,6 @@ Also run `claude plugin validate ./bpe` and confirm exit 0, and inspect loaded h
 
 End-to-end check (requires a reloaded interactive session):
 
-1. Write a `.claude/bpe.local.md` at the repo root pinning `brainstorm` to a model that differs from the session's (for example `claude-opus-4-7` while the session runs a Sonnet model).
+1. Write a `.claude/bpe.local.md` at the repo root pinning `brainstorm` to a model that differs from the session's (for example `claude-fable-5` while the session runs a Sonnet model).
 2. Type `/bpe:brainstorm` and confirm the warning line appears in the transcript before the skill runs.
 3. Delete the settings file, restart, type `/bpe:brainstorm` again, and confirm no warning appears.
