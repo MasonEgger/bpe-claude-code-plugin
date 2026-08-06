@@ -40,7 +40,7 @@ The parent session orchestrates and dispatches one subagent per step, so the par
 |---|---|---|
 | `bpe:step-executor` | sonnet | Executes one plan step per dispatch in `implement`, `fix`, or `finalize` mode |
 | `bpe:validator` | opus | Read-only QA gate between implement and finalize; checks the uncommitted diff and returns structured findings |
-| `bpe:cheap-research` | haiku | External lookups for `/bpe:plan`, `/bpe:brainstorm`, and `/bpe:retrofit` |
+| `bpe:cheap-research` | sonnet | External lookups for `/bpe:plan`, `/bpe:brainstorm`, and `/bpe:retrofit` |
 
 The validator is dispatched by the orchestrator, not invoked directly.
 It never edits, never commits, and its findings route back to a `fix` dispatch before the step is allowed to commit.

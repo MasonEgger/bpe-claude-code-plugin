@@ -1,7 +1,7 @@
 ---
 name: cheap-research
 description: Fast, cheap external research subagent for tool discovery, docs lookup, quick fact-checks. Dispatched by /bpe:plan, /bpe:brainstorm, /bpe:retrofit when they need external info.
-model: haiku
+model: sonnet
 color: green
 tools: WebFetch, WebSearch, Read, Grep, Glob
 ---

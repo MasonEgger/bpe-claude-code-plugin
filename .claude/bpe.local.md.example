@@ -34,7 +34,7 @@ profiles:
     agents:
       validator: claude-fable-5          # adversarial review: strongest judgment
       step-executor: claude-opus-5
-      cheap-research: sonnet             # alias: latest Sonnet
+      # cheap-research is omitted: its frontmatter default is already sonnet.
   work:
     # Alias-only: environments without frontier access ride each family's
     # latest release automatically.
@@ -46,7 +46,6 @@ profiles:
       apply-review: opus
     agents:
       validator: opus
-      cheap-research: sonnet
 ---
 
 # BPE Profile Settings

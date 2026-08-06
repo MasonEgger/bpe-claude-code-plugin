@@ -224,7 +224,7 @@ Frontmatter:
 ```yaml
 name: cheap-research
 description: Fast, cheap external research subagent for tool discovery, docs lookup, quick fact-checks. Dispatched by /bpe:plan, /bpe:brainstorm, /bpe:retrofit when they need external info.
-model: haiku
+model: sonnet
 tools: WebFetch, WebSearch, Read, Grep, Glob
 ```
 
@@ -269,7 +269,7 @@ Subagent tier assignments (frontmatter in `bpe/agents/*.md`):
 |---|---|---|
 | bpe:step-executor | sonnet | Focused code work with clear prompts |
 | bpe:validator | opus | Adversarial review needs Opus judgment |
-| bpe:cheap-research | haiku | Cheap external lookups |
+| bpe:cheap-research | sonnet | External lookups; Sonnet handles search-and-summarize well above Haiku at modest cost |
 
 The runtime resolves `opus`, `sonnet`, `haiku` aliases to the latest available model in each family. That handles the automatic case where the current model in each family is fine, but it does NOT give the user an explicit "use Fable specifically for brainstorm on my personal machine" lever. `opus` resolving to whichever Opus is latest is not the same as `opus` resolving to Fable when Fable is what the user wants.
 
@@ -435,7 +435,7 @@ Eleven independently implementable components. Component A must land first (boot
 **Files touched:**
 - `bpe/agents/step-executor.md` (`model: sonnet`)
 - `bpe/agents/validator.md` (`model: opus`)
-- `bpe/agents/cheap-research.md` (`model: haiku`) (from Component C)
+- `bpe/agents/cheap-research.md` (`model: sonnet`) (from Component C)
 - Each `bpe/skills/<name>/SKILL.md` (tier per the table in Goal 11)
 
 **Verification:** Dispatching each subagent respects the tier. Invoking each skill switches the current turn's model to the declared tier.
@@ -500,7 +500,7 @@ The 0.6.0 release converges when all of the following hold.
 7. `/bpe:goal` runs a non-code project autonomously using a `spec.md`-declared `**Verification command:**`.
 8. `bpe:validator` emits Vale-sourced findings on a prose project with `Linters: vale ...` in the Tools block.
 9. `.ai-sessions/<slug>/` archive directories exist for completed plans, with `plan.md`, `todo.md`, and `accomplishment.md`.
-10. Subagent frontmatter enforces model tiers: `step-executor: sonnet`, `validator: opus`, `cheap-research: haiku`. Skill frontmatter enforces per-turn tier per the Goal 11 table. `.claude/bpe.local.md` profile system supports per-skill and per-subagent overrides with `active_profile:` toggle and `BPE_PROFILE` env var. Personal profile can pin specific skills to an explicit model ID; work profile defaults to `opus` alias.
+10. Subagent frontmatter enforces model tiers: `step-executor: sonnet`, `validator: opus`, `cheap-research: sonnet`. Skill frontmatter enforces per-turn tier per the Goal 11 table. `.claude/bpe.local.md` profile system supports per-skill and per-subagent overrides with `active_profile:` toggle and `BPE_PROFILE` env var. Personal profile can pin specific skills to an explicit model ID; work profile defaults to `opus` alias.
 11. `bpe/.claude-plugin/plugin.json` version bumped to 0.6.0.
 
 ## Out of scope (future work, tracked)
