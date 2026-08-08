@@ -6,7 +6,7 @@ The design rationale lives in spec.md Goal 11.
 
 ## Purpose
 
-Skill and agent frontmatter ships fixed `model:` tiers (`opus`, `sonnet`, `haiku` per the Goal 11 tables).
+Skill and agent frontmatter ships fixed `model:` tiers (`opus` and `sonnet` per the Goal 11 tables; `haiku` remains a valid override value).
 Aliases resolve to the latest available model in each family, which handles the automatic case but gives the user no lever for "use this specific model ID for brainstorm on my personal machine."
 Profiles provide that lever: a settings file maps skill and agent names to model values per named profile, and the user switches profiles per machine, per project, or per shell.
 
@@ -124,7 +124,7 @@ This section is re-evaluated when a model generation ships; a stale date here is
 | brainstorm, retrofit, plan, review, apply-review | `claude-fable-5` | Spec-shaping and decision review live in ambiguity, where Fable 5 keeps the edge ("for ambiguous work" per week-one practitioner consensus and Anthropic's own "highest available capability" framing) |
 | validator agent | `claude-fable-5` | Adversarial review wants the strongest judgment available; the validator's whole job is catching what the executor missed |
 | step-executor agent, execute-plan | `claude-opus-5` | Bounded execution against a decision-complete plan: near-Fable coding capability at half the cost, strong self-verification |
-| cheap-research agent | `sonnet` (alias) | Fast external lookups; Sonnet 5 handles search-and-summarize well above Haiku with modest cost |
+| cheap-research agent | frontmatter default (`sonnet`) | Fast external lookups; Sonnet 5 handles search-and-summarize well above Haiku at modest cost. This was an override recommendation on 2026-07-26 and is now the shipped default, so no profile entry is needed. |
 | Everything else (goal, session-summary, commit-message, handoff, lessons, wtf-wid, gh-issue) | frontmatter defaults | Mechanical work; the shipped `sonnet` tiers hold |
 
 Caveats recorded at adoption, to re-test before trusting long-term:
