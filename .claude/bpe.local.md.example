@@ -28,12 +28,12 @@ profiles:
       plan: claude-fable-5
       review: claude-fable-5
       apply-review: claude-fable-5
-      execute-plan: claude-opus-5        # bounded execution: near-frontier at half cost
+      execute-plan: claude-opus-4-8      # bounded execution against a decision-complete plan
     # Agent overrides. Keys are bare agent names as they appear in
     # bpe/agents/<name>.md (`validator`, not `bpe:validator`).
     agents:
       validator: claude-fable-5          # adversarial review: strongest judgment
-      step-executor: claude-opus-5
+      step-executor: claude-opus-4-8
       # cheap-research is omitted: its frontmatter default is already sonnet.
   work:
     # Alias-only: environments without frontier access ride each family's

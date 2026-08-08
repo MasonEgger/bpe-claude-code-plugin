@@ -115,20 +115,20 @@ With this file at `~/.claude/bpe.local.md` and no per-project file:
 ## Recommended Tier Map
 
 Dated recommendations, not schema.
-This section is re-evaluated when a model generation ships; a stale date here is a defect, and the `.claude/bpe.local.md.example` file at the repo root mirrors whatever this section currently says.
+This section is re-evaluated when a model generation ships or a recommendation proves out (or fails) in use; a stale date here is a defect, and the `.claude/bpe.local.md.example` file at the repo root mirrors whatever this section currently says.
 
-### 2026-07-26 (Opus 5 release)
+### 2026-08-08 (Opus 4.8 executor, Opus 5 rolled back)
 
 | Role | Recommendation | Why |
 |---|---|---|
 | brainstorm, retrofit, plan, review, apply-review | `claude-fable-5` | Spec-shaping and decision review live in ambiguity, where Fable 5 keeps the edge ("for ambiguous work" per week-one practitioner consensus and Anthropic's own "highest available capability" framing) |
 | validator agent | `claude-fable-5` | Adversarial review wants the strongest judgment available; the validator's whole job is catching what the executor missed |
-| step-executor agent, execute-plan | `claude-opus-5` | Bounded execution against a decision-complete plan: near-Fable coding capability at half the cost, strong self-verification |
+| step-executor agent, execute-plan | `claude-opus-4-8` | Bounded execution against a decision-complete plan. Opus 5 was adopted here on 2026-07-26 and rolled back after lived use: it improvised and widened scope more than Opus 4.8 on bounded plan work, so 4.8 is the reliable executor |
 | cheap-research agent | frontmatter default (`sonnet`) | Fast external lookups; Sonnet 5 handles search-and-summarize well above Haiku at modest cost. This was an override recommendation on 2026-07-26 and is now the shipped default, so no profile entry is needed. |
 | Everything else (goal, session-summary, commit-message, handoff, lessons, wtf-wid, gh-issue) | frontmatter defaults | Mechanical work; the shipped `sonnet` tiers hold |
 
-Caveats recorded at adoption, to re-test before trusting long-term:
+Why the rollback: the 2026-07-26 adoption caveats below proved out in use rather than passing a re-test.
 
-- The community claim that Opus 5 follows instructions better than Fable did not survive a 2026-07-26 research pass; week-one reports showed more improvisation than prior Opus, heavily confounded by legacy scaffolding. The executor recommendation rests on cost and capability, not obedience.
-- Anthropic's Opus 5 prompting guide warns that explicit verification instructions cause over-verification and that the model can widen task scope; watch the first autonomous runs for both, and drop the executor back to `sonnet` if dispatch costs balloon.
-- No independent long-horizon head-to-head between Fable 5 and Opus 5 existed at adoption time; revisit when one does.
+- The community claim that Opus 5 follows instructions better than Fable never survived the 2026-07-26 research pass; week-one reports showed more improvisation than prior Opus. The executor pin rested on cost and capability, not obedience, and the improvisation is what sank it in practice.
+- Anthropic's Opus 5 prompting guide warned that explicit verification instructions cause over-verification and that the model can widen task scope; both showed up on bounded plan execution, which is exactly the executor's job.
+- No independent long-horizon head-to-head between Fable 5 and Opus 5 existed at adoption time; lived use stood in for the missing benchmark and pointed back to Opus 4.8 for the executor tier.
