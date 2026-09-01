@@ -2,7 +2,7 @@
 name: review
 description: Render spec.md, plan.md, or todo.md as a fine-grained, decision-by-decision review page in your browser, then write the feedback as JSON for /bpe:apply-review to consume.
 argument-hint: spec | plan | todo (defaults to most recent)
-model: opus
+model: claude-opus-4-8
 ---
 
 # Review Command

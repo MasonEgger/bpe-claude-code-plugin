@@ -4,7 +4,7 @@ description: |
   Generic read-only QA agent dispatched by /bpe:goal between executor mode=implement and mode=finalize. Reads the uncommitted diff, consults MCP servers and skills passed in by the orchestrator (from plan.md per-section declarations), runs any linters declared in the section's Tools block, and returns a structured findings block validated against the canonical schema in references/validator-protocol.md.
 
   NEVER edits files. NEVER commits. NEVER dispatches other agents. NEVER runs tests (the executor owns the test suite). Output is the findings block ONLY; the orchestrator decides what happens next.
-model: opus
+model: claude-opus-4-8
 color: yellow
 tools: Read, Grep, Glob, Bash, Skill, ToolSearch
 ---

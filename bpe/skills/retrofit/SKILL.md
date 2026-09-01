@@ -1,7 +1,7 @@
 ---
 name: retrofit
 description: "Retrofit a BPE-compatible spec.md onto an existing project that lacks one. Reads repo state and runs a shortened Q&A focused on gaps."
-model: opus
+model: claude-opus-4-8
 disable-model-invocation: true
 argument-hint: "[--replace]"
 ---
