@@ -80,6 +80,19 @@ Before writing spec.md, run a closure pass:
 
 ## Saving
 
-Once we are done, save the spec as @spec.md. Place the `## Starting context` section from Step 0 between `# <title>` and `## Project overview`. Make sure the `## Available tooling` section is present near the top of the spec (after the project overview, before the detailed requirements).
+Once we are done, save the spec as @spec.md.
+Write the sections in the canonical order defined under "Spec Section Order (spec.md)" in `${CLAUDE_PLUGIN_ROOT}/references/session-management.md`.
+`/bpe:retrofit` writes the same order, and `/bpe:plan` consumes either without knowing which skill wrote it.
+Under `# <title>`:
+
+1. `## Starting context`: the Step 0 context answer, verbatim.
+2. `## Project overview`: what the project is and where it is going. This carries the mission; there is no separate mission section.
+3. `## Invariants`: the rules that hold across every phase. Record the tech stack and every constraint the user treated as non-negotiable during the Q&A (dependencies not to add, patterns to follow, things the project must never do). One bullet per rule.
+4. `## Available tooling`: the confirmed set from Tool discovery, in the format shown above.
+5. `## Roadmap / phase log`: `**Shipped:**` with `- none yet` for a new project, and `**Upcoming:**` with any later phases the user named. The archive routine appends shipped phases later; do not pre-fill them.
+6. `## Goals`: the requirements, concrete enough to plan from. Edited in place in later phases, never appended to.
+7. `## Non-goals`: what the project deliberately does not do. Permanent exclusions only; a single phase's scope fence belongs in plan.md, not here.
+8. `## Component boundaries`: the independently implementable components with their inputs, outputs, and responsibilities.
+9. `## Success criteria`: how the user will know the project is done.
 
 Here's the idea:
