@@ -89,9 +89,9 @@ Under `# <title>`:
 2. `## Project overview`: what the project is and where it is going. This carries the mission; there is no separate mission section.
 3. `## Invariants`: the rules that hold across every phase. Record the tech stack and every constraint the user treated as non-negotiable during the Q&A (dependencies not to add, patterns to follow, things the project must never do). One bullet per rule.
 4. `## Available tooling`: the confirmed set from Tool discovery, in the format shown above.
-5. `## Roadmap / phase log`: `**Shipped:**` with `- none yet` for a new project, and `**Upcoming:**` with any later phases the user named. The archive routine appends shipped phases later; do not pre-fill them.
+5. `## Roadmap / phase log`: `**Shipped:**` with `- none yet` for a new project, `**Upcoming:**` with any later phases the user named, and `**Deferred:**` with every piece of work the user sorted as not-now during the Q&A, one line each with a one-line reason or trigger (or `- none`). The archive routine appends shipped phases later; do not pre-fill them.
 6. `## Goals`: the requirements, concrete enough to plan from. Edited in place in later phases, never appended to.
-7. `## Non-goals`: what the project deliberately does not do. Permanent exclusions only; a single phase's scope fence belongs in plan.md, not here.
+7. `## Non-goals`: what the project deliberately does not do, ever. Permanent exclusions only; work that is merely not-now belongs in `**Deferred:**` under `## Roadmap / phase log`.
 8. `## Component boundaries`: the independently implementable components with their inputs, outputs, and responsibilities.
 9. `## Success criteria`: how the user will know the project is done.
 

@@ -53,8 +53,8 @@ The resulting spec.md matches the format `/bpe:brainstorm` produces, so `/bpe:pl
    `## Starting context` records the step 3 context answer verbatim.
    `## Project overview` carries the mission (what the project is and where the user wants it to go); there is no separate mission section.
    `## Invariants` holds the rules that hold across every phase: the tech stack the step 2 manifests reveal, plus every constraint the repo or the user marks as non-negotiable (dependencies not to add, patterns to follow, things the project must never do). One bullet per rule.
-   `## Roadmap / phase log` starts with `**Shipped:**` listing one line per existing `.ai-sessions/<slug>/` archive as `- <slug>: <one-line summary> (.ai-sessions/<slug>/)`, or `- none yet` if there are none, and `**Upcoming:**` with any later phases the user named in step 4.
-   `## Non-goals` records what the project deliberately does not do, permanently; a single phase's scope fence belongs in plan.md.
+   `## Roadmap / phase log` starts with `**Shipped:**` listing one line per existing `.ai-sessions/<slug>/` archive as `- <slug>: <one-line summary> (.ai-sessions/<slug>/)`, or `- none yet` if there are none, `**Upcoming:**` with any later phases the user named in step 4, and `**Deferred:**` with the step 4 out-of-scope answers that are not-now rather than never, one line each with a reason or trigger (or `- none`).
+   `## Non-goals` records what the project deliberately does not do, ever; step 4's out-of-scope answers split between here (never) and `**Deferred:**` (not now).
    `## Available tooling` uses the exact section format `/bpe:brainstorm` writes:
 
    ```markdown

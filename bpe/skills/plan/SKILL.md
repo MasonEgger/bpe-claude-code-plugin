@@ -32,7 +32,8 @@ The archive layout and the accomplishment.md format are canonically documented i
 3. `mv plan.md .ai-sessions/<slug>/plan.md`
 4. `mv todo.md .ai-sessions/<slug>/todo.md`
 5. Write `.ai-sessions/<slug>/accomplishment.md` following the accomplishment.md template in session-management.md. Populate it from the just-moved plan.md and todo.md plus `git log` commit subjects; the template section documents each field.
-6. Proceed to generate a fresh plan (the rest of this skill).
+6. Record the archive in spec.md. Under `**Shipped:**` in `## Roadmap / phase log`, append `- <slug>: <one-line summary> (.ai-sessions/<slug>/)` as the last line, taking the summary from the accomplishment.md title and its Convergence line. If the list still reads `- none yet`, replace that line instead of appending. If spec.md has no `## Roadmap / phase log` section (a spec written before the section existed), skip this step and tell the user; do not add the section here.
+7. Proceed to generate a fresh plan (the rest of this skill).
 
 Draft a detailed, step-by-step blueprint for building this project. Then, once you have a solid plan, break it down into small, iterative chunks that build on each other. Look at these chunks and then go another round to break it into small steps. Review the results and make sure that the steps are small enough to be implemented safely with strong testing, but big enough to move the project forward. Iterate until you feel that the steps are right sized for this project.
 
@@ -186,6 +187,16 @@ The Task template's Scope / Tooling / Do / Verify / Document sub-steps are still
 6. **Integration Requirements**: Every Feature prompt ends with wiring the new code into existing systems; Task prompts end with their Verify and Document sub-steps
 
 Make sure and separate each prompt section. Use markdown. Each prompt should be tagged as text using code tags. The goal is to output prompts that execute-plan can follow step-by-step, but context and architectural decisions are important as well.
+
+## Honor the Spec's Fences
+
+Before drafting steps, read three parts of spec.md and treat them as constraints on the plan.
+They are optional in specs written before they existed; skip any that is absent.
+
+- `## Invariants`: no step may violate a listed rule (add a forbidden dependency, break a required pattern, do a thing the project must never do).
+- `## Non-goals` and the `**Deferred:**` list under `## Roadmap / phase log`: no step may implement anything listed there. Deferred items are the backlog of likely future work, so a step that touches one is a scope leak, not a bonus.
+
+If the spec's goals cannot be planned without crossing one of these, stop and say so rather than planning around it; the fix is a spec change, not a quiet exception in the plan.
 
 ## Tool discovery
 

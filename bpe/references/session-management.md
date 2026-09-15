@@ -307,7 +307,8 @@ The remaining sections hold the requirements.
 `## Goals` is the What, edited in place as the project evolves rather than appended to.
 `## Non-goals` records what the project deliberately does not do, permanently.
 `## Component boundaries` and `## Success criteria` carry the testable shape of the work.
-A single phase's scope fence (what that phase deliberately leaves alone) does not appear in spec.md; it belongs to plan.md.
+Work the project is not doing sorts into three places by commitment: never goes in `## Non-goals`, not now (revisit later) goes in the `**Deferred:**` list of `## Roadmap / phase log`, and now goes in `## Goals`.
+Nothing phase-local lives outside the spec; a plan's scope is simply the steps it contains.
 
 ## Starting Context Section (spec.md)
 
@@ -343,6 +344,6 @@ It is the project's rulebook: the constraints that hold across every phase, as o
 spec.md is permanent and edited in place, so its body always describes current intent and never accumulates history.
 This section is the one place the spec points at that history.
 
-- **Format**: an H2 heading, `## Roadmap / phase log`, followed by two labeled lists. `**Shipped:**` holds one line per archived plan, `- <slug>: <one-line summary> (.ai-sessions/<slug>/)`, oldest first. `**Upcoming:**` holds a free-form list of planned phases that the user maintains by hand; it may be empty. At creation, `**Shipped:**` reads `- none yet` unless the repo already has archives.
+- **Format**: an H2 heading, `## Roadmap / phase log`, followed by three labeled lists. `**Shipped:**` holds one line per archived plan, `- <slug>: <one-line summary> (.ai-sessions/<slug>/)`, oldest first. `**Upcoming:**` holds a free-form list of planned phases that the user maintains by hand; it may be empty. `**Deferred:**` holds work the project is deliberately not doing now but may do later, one line each as `- <item>: <one-line reason or trigger>`; it is populated by the out-of-scope pass in `/bpe:brainstorm` and `/bpe:retrofit` (user-confirmed) and may read `- none`. At creation, `**Shipped:**` reads `- none yet` unless the repo already has archives.
 - **Placement**: after `## Available tooling`, before `## Goals`.
-- **Purpose**: an index into the plan archives, so a reader finds what each phase built without git archaeology, plus the forward roadmap when the user keeps one. The Archive routine appends each shipped line; nothing else edits the shipped list.
+- **Purpose**: an index into the plan archives, so a reader finds what each phase built without git archaeology, plus the forward roadmap when the user keeps one. `**Deferred:**` doubles as the backlog of likely future expansions and, together with `## Non-goals`, as the scope fence for every phase: work listed in either is out of scope until the user promotes it into `## Goals`. The Archive routine appends each shipped line; nothing else edits the shipped list.
