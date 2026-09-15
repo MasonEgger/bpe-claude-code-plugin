@@ -1,7 +1,7 @@
 ---
 name: plan
 description: Transform spec.md into an implementation roadmap (plan.md + todo.md) of TDD Feature steps and non-TDD Task steps
-model: opus
+model: claude-opus-4-8
 disable-model-invocation: true
 argument-hint: "[--archive | --regen] [--no-discover]"
 ---
