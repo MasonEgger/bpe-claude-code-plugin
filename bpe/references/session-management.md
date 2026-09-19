@@ -351,11 +351,12 @@ This section is the one place the spec points at that history.
 ## Vendored Rules (.claude/rules/vendored/)
 
 `/bpe:brainstorm` writes this directory when the user confirms vendoring; `/bpe:retrofit` refreshes it on resync.
-Vendoring copies the hard rules from the author's own skills and user-level rules into the repo so that a collaborator's agent follows them without having those skills.
+Vendoring copies the hard rules from the author's own sources (session skills, user-level rules in `~/.claude/rules/`, and files `~/.claude/CLAUDE.md` imports with `@path`) into the repo so that a collaborator's agent follows them without having those sources.
+A source whose description or first line says `never vendored` is never proposed.
 It is purely a sharing mechanism: it runs only for a shared repo (public remote, or a LICENSE plus a public-host remote), and on a solo or private repo nothing is written.
 
 - **Layout**: one file per rulebook at `.claude/rules/vendored/<domain>.md` (`python.md`, `writing.md`, `tutorials.md`), with `paths:` frontmatter matching the artifact class the rules govern. Claude Code discovers `.claude/rules/` recursively, so these load for anyone working in the repo like any other rule.
-- **Content**: a verbatim copy of the source's "Hard rules" block (or, when the source has none, a user-confirmed extract of its must/never rules). Never paraphrased, so the vendored file and the author's live copy are byte-identical and cannot disagree; staleness is corrected by resync, not by editing the vendored file.
+- **Content**: a verbatim copy of the source's "Hard Rules" block, matched case-insensitively (or, when the source has none, a user-confirmed extract of its must/never rules). Never paraphrased, so the vendored file and the author's live copy are byte-identical and cannot disagree; staleness is corrected by resync, not by editing the vendored file.
 - **Pointer**: each vendored file gets one bullet in `## Invariants`, `- Python: per .claude/rules/vendored/python.md`, so the spec names the rulebooks it depends on.
 - **Author exclusion**: the author's live skills are the source, so loading the vendored copy too would duplicate them. Brainstorm merges `"claudeMdExcludes": ["**/.claude/rules/vendored/**"]` into the repo's gitignored `.claude/settings.local.json`; that setting matches globs against absolute paths and applies to rules files, so the author's sessions skip the directory while a collaborator's load it. The exclusion is per machine.
 - **Buckets**: craft rules for an artifact class the project produces are always vendored; doc-hygiene rules only when prose docs are a primary artifact; personal-identity rules (the author's own voice) never.
