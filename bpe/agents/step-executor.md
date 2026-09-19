@@ -30,7 +30,7 @@ Echo the routed mode in user-facing text before pre-flight so the orchestrator t
 
 ## How to follow a referenced skill file
 
-The procedures below reference markdown files at `${CLAUDE_PLUGIN_ROOT}/skills/*/SKILL.md` and `${CLAUDE_PLUGIN_ROOT}/references/*.md`. "Follow" means: Read the markdown file with the Read tool, then execute its numbered procedure inline as your own work. Do NOT attempt to invoke the corresponding slash command (e.g. `/bpe:execute-plan`, `/bpe:session-summary`, `/bpe:commit-message`). You are a subagent with no user-input channel; slash commands cannot be invoked from here. If a procedure step says "use the X tool" or "run command Y", do that directly. If it says "ask the user" (execute-plan steps 6 and 10 do this), see the "No user questions" invariant in the protocol.
+The procedures below reference markdown files at `${CLAUDE_PLUGIN_ROOT}/skills/*/SKILL.md` and `${CLAUDE_PLUGIN_ROOT}/references/*.md`. "Follow" means: Read the markdown file with the Read tool, then execute its numbered procedure inline as your own work. Do NOT attempt to invoke the corresponding slash command (e.g. `/bpe:execute-plan`, `/bpe:session-summary`, `/bpe:commit-message`). You are a subagent with no user-input channel; slash commands cannot be invoked from here. If a procedure step says "use the X tool" or "run command Y", do that directly. If it says "ask the user" (execute-plan steps 6, 8, and 11 do this), see the "No user questions" invariant in the protocol.
 
 ## Mode: implement
 
@@ -40,7 +40,7 @@ Procedure:
 
 1. Clean-tree check. `git status --short`. Abort with `Failure:` if non-empty. Echo the offending output. A dirty tree at implement start means the prior step did not finalize, OR the orchestrator broke SEQUENTIAL DISPATCHES.
 2. Branch check. `git rev-parse --abbrev-ref HEAD`. Abort on `main`/`master`. Echo.
-3. Execute the sub-steps for the current todo item as written in plan.md. Read `${CLAUDE_PLUGIN_ROOT}/skills/execute-plan/SKILL.md` and follow its numbered procedure inline. Honor whichever template shape the step declares (Feature RED/GREEN/REFACTOR or Task Scope/Tooling/Do/Verify/Document), then mark the todo item.
+3. Execute the sub-steps for the current todo item as written in plan.md. Read `${CLAUDE_PLUGIN_ROOT}/skills/execute-plan/SKILL.md` and follow its numbered procedure inline. Honor whichever template shape the step declares (Feature RED/GREEN/REFACTOR or Task Scope/Tooling/Do/Verify/Document), then mark the todo item. Its step 8 checks the diff against spec.md's fences (Invariants, Non-goals, Deferred); where that step says to stop and ask the user, you instead abort with `Failure:` naming the fence and the files, per the protocol. Never work around a fence.
 4. Branch re-check (defense in depth). Abort if changed to `main`/`master`.
 5. Test run. Run the project's test command. Capture the result. Abort with `Failure:` if not exit 0; do not hand a red diff to the validator.
 6. Tree snapshot. Run `git diff --shortstat` and capture for the report.

@@ -34,6 +34,13 @@ disable-model-invocation: true
    - Verify tests and linting pass and the program builds/runs
 
    Note: plan.md may mix Feature and Task steps within one plan. Honor whichever sub-step shape the current step declares; the numbered sub-steps ARE the procedure, regardless of template.
-8. **Update documentation as specified** in the @plan.md prompts for this step
-9. Update @todo.md and mark off the item that was completed
-10. Ask the user if there is anything else they want you to do or review for this session.
+8. **Check the diff against the spec's fences.** Read three parts of @spec.md, skipping any that is absent (specs written before they existed have none): `## Invariants`, `## Non-goals`, and the `**Deferred:**` list under `## Roadmap / phase log`. Then check `git diff HEAD --name-only` and the diff itself:
+   - `- deps: frozen`: the diff must not touch a dependency manifest or lockfile (pyproject.toml, uv.lock, package.json, package-lock.json, Cargo.toml, Cargo.lock, go.mod, go.sum, or their equivalents).
+   - `- paths: <globs>`: every changed file must match one of the globs.
+   - Every other Invariants bullet: read it and confirm the diff does not violate it.
+   - Non-goals and Deferred entries: the diff must not implement anything listed there.
+
+   A violation is not something to patch around. Stop, report exactly which fence and which files, leave @todo.md unchecked, and ask the user; the fix is a spec change (promote the Deferred item, amend the Invariant) or a plan change, and it is theirs to make.
+9. **Update documentation as specified** in the @plan.md prompts for this step
+10. Update @todo.md and mark off the item that was completed
+11. Ask the user if there is anything else they want you to do or review for this session.
