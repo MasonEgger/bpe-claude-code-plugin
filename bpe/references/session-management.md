@@ -1,6 +1,6 @@
 # Session Management
 
-This file is the single source of truth for the format and workflow of session artifacts in `.ai-sessions/`. The `/bpe:session-summary`, `/bpe:execute-plan`, and `/bpe:handoff` commands all read it directly via `${CLAUDE_PLUGIN_ROOT}/references/session-management.md`. It also canonically documents spec.md's `## Starting context` and `## Available tooling` sections (see "Starting Context Section (spec.md)" and "Available Tooling Section (spec.md)" below), which `/bpe:brainstorm` and `/bpe:retrofit` write, and the plan-archive layout that `/bpe:plan --archive` writes (see "Plan Archives (accomplishment.md)" below).
+This file is the single source of truth for the format and workflow of session artifacts in `.ai-sessions/`. The `/bpe:session-summary`, `/bpe:execute-plan`, and `/bpe:handoff` commands all read it directly via `${CLAUDE_PLUGIN_ROOT}/references/session-management.md`. It also canonically documents spec.md: the full section order (see "Spec Section Order (spec.md)" below) and the `## Starting context`, `## Available tooling`, `## Invariants`, and `## Roadmap / phase log` sections (each defined in its own section below), which `/bpe:brainstorm` and `/bpe:retrofit` write, and the plan-archive layout that `/bpe:plan --archive` writes (see "Plan Archives (accomplishment.md)" below).
 
 ## Purpose
 
@@ -286,6 +286,30 @@ This section is the canonical definition of the archive layout and the accomplis
 Populate "What Got Done" from todo.md's checked top-level items and the plan's commit subjects (`git log --oneline` over the plan's branch).
 Use "Deferred or Dropped" and "Notable Decisions" sparingly; an empty section may be omitted, matching the lessons.md rule for empty categories.
 
+## Spec Section Order (spec.md)
+
+`/bpe:brainstorm` and `/bpe:retrofit` both write spec.md, and `/bpe:plan` consumes either without knowing which skill wrote it, so both emit the same sections in the same order.
+This list is canonical; the two skills conform to it.
+
+1. `## Starting context`
+2. `## Project overview`
+3. `## Invariants`
+4. `## Available tooling`
+5. `## Roadmap / phase log`
+6. `## Goals`
+7. `## Non-goals`
+8. `## Component boundaries`
+9. `## Success criteria`
+
+`## Project overview` carries the project's mission, what it is and where it is going; there is no separate mission section.
+`## Starting context`, `## Available tooling`, `## Invariants`, and `## Roadmap / phase log` are each defined in their own section below.
+The remaining sections hold the requirements.
+`## Goals` is the What, edited in place as the project evolves rather than appended to.
+`## Non-goals` records what the project deliberately does not do, permanently.
+`## Component boundaries` and `## Success criteria` carry the testable shape of the work.
+Work the project is not doing sorts into three places by commitment: never goes in `## Non-goals`, not now (revisit later) goes in the `**Deferred:**` list of `## Roadmap / phase log`, and now goes in `## Goals`.
+Nothing phase-local lives outside the spec; a plan's scope is simply the steps it contains.
+
 ## Starting Context Section (spec.md)
 
 The blindspot pass in `/bpe:brainstorm` (Step 0) and `/bpe:retrofit` (procedure step 3) records the user's starting-context answer in spec.md.
@@ -297,10 +321,42 @@ This section is the canonical definition of that record; both skills conform to 
 
 ## Available Tooling Section (spec.md)
 
-The tool discovery pass in `/bpe:brainstorm` (Tool discovery section) and `/bpe:retrofit` (procedure step 4) records the user's confirmed validator tooling in spec.md.
+The tool discovery pass in `/bpe:brainstorm` ("Tool discovery and the single confirm" section) and `/bpe:retrofit` (procedure step 4) records the user's confirmed validator tooling in spec.md.
 This section is the canonical definition of that record; both skills conform to it.
 
 - **Format**: an H2 heading, `## Available tooling`, followed by one intro sentence, then labeled fields in this order: `**MCPs:**` (bullet list), `**Skills:**` (bullet list), `**Verification command:**` (optional single line, see below), `**Notes:**` (free-form validator guidance). Empty MCP and skill lists are valid; the section still exists so plan.md has a known structure to read.
-- **Placement**: after `## Project overview`, before the detailed requirements in spec.md.
+- **Placement**: after `## Invariants`, before `## Roadmap / phase log` in spec.md.
 - **Purpose**: `/bpe:plan` propagates the MCP and skill lists to per-section `**Tools:**` declarations in plan.md (legacy plans: `**Validator consults:**`); `/bpe:goal` passes them to the `bpe:validator` agent when dispatching it.
 - **Verification command field**: a single line, `**Verification command:** <command>`, e.g. `**Verification command:** vale docs/`. Written only when the project's tech stack matches none of the test-runner manifests `/bpe:goal` autodetects (pyproject.toml, package.json, Cargo.toml, go.mod). `/bpe:goal`'s pre-flight resolves its verification command through a cascade: manifest autodetect, then this field, then asking the user. Exit 0 of the resolved command is the goal condition's success signal, so the command must succeed only when the work is verifiably done.
+
+## Invariants Section (spec.md)
+
+`/bpe:brainstorm` and `/bpe:retrofit` write this section at spec creation.
+It is the project's rulebook: the constraints that hold across every phase, as opposed to the requirements of any one phase.
+
+- **Format**: an H2 heading, `## Invariants`, followed by one bullet list, one rule per bullet, in two forms. Checkable rules carry a fixed key prefix so a validator can find them mechanically: `- deps: frozen` (no dependency changes without a spec change) and `- paths: <glob>[, <glob>]` (all changes stay inside these paths); that is the whole vocabulary for now. Every other bullet is prose a reader judges: the tech stack (language, runtime, primary frameworks, package manager), dependencies that must not be added, patterns that must be followed, things the project must never do. Rulebooks vendored into the repo get one pointer bullet each, `- Python: per .claude/rules/vendored/python.md`; when nothing is vendored, name the governing skill instead, `- Python: per the python:python skill`.
+- **Placement**: after `## Project overview`, before `## Available tooling`.
+- **Purpose**: project-level law. The plan writer and the executor honor these rules in every phase. They live in the repo rather than in any one person's private config, so a collaborator's agent works from the same rules.
+
+## Roadmap / Phase Log Section (spec.md)
+
+`/bpe:brainstorm` and `/bpe:retrofit` write this section at spec creation; the Archive routine in `/bpe:plan --archive` appends to it when a plan is retired.
+spec.md is permanent and edited in place, so its body always describes current intent and never accumulates history.
+This section is the one place the spec points at that history.
+
+- **Format**: an H2 heading, `## Roadmap / phase log`, followed by three labeled lists. `**Shipped:**` holds one line per archived plan, `- <slug>: <one-line summary> (.ai-sessions/<slug>/)`, oldest first. `**Upcoming:**` holds a free-form list of planned phases that the user maintains by hand; it may be empty. `**Deferred:**` holds work the project is deliberately not doing now but may do later, one line each as `- <item>: <one-line reason or trigger>`; it is populated by the out-of-scope pass in `/bpe:brainstorm` and `/bpe:retrofit` (user-confirmed) and may read `- none`. At creation, `**Shipped:**` reads `- none yet` unless the repo already has archives.
+- **Placement**: after `## Available tooling`, before `## Goals`.
+- **Purpose**: an index into the plan archives, so a reader finds what each phase built without git archaeology, plus the forward roadmap when the user keeps one. `**Deferred:**` doubles as the backlog of likely future expansions and, together with `## Non-goals`, as the scope fence for every phase: work listed in either is out of scope until the user promotes it into `## Goals`. The Archive routine appends each shipped line; nothing else edits the shipped list.
+
+## Vendored Rules (.claude/rules/vendored/)
+
+`/bpe:brainstorm` writes this directory when the user confirms vendoring; `/bpe:retrofit` refreshes it on resync.
+Vendoring copies the hard rules from the author's own sources (session skills, user-level rules in `~/.claude/rules/`, and files `~/.claude/CLAUDE.md` imports with `@path`) into the repo so that a collaborator's agent follows them without having those sources.
+A source whose description or first line says `never vendored` is never proposed.
+It is purely a sharing mechanism: it runs only for a shared repo (public remote, or a LICENSE plus a public-host remote), and on a solo or private repo nothing is written.
+
+- **Layout**: one file per rulebook at `.claude/rules/vendored/<domain>.md` (`python.md`, `writing.md`, `tutorials.md`), with `paths:` frontmatter matching the artifact class the rules govern. Claude Code discovers `.claude/rules/` recursively, so these load for anyone working in the repo like any other rule.
+- **Content**: a verbatim copy of the source's "Hard Rules" block, matched case-insensitively (or, when the source has none, a user-confirmed extract of its must/never rules). Never paraphrased, so the vendored file and the author's live copy are byte-identical and cannot disagree; staleness is corrected by resync, not by editing the vendored file.
+- **Pointer**: each vendored file gets one bullet in `## Invariants`, `- Python: per .claude/rules/vendored/python.md`, so the spec names the rulebooks it depends on.
+- **Author exclusion**: the author's live skills are the source, so loading the vendored copy too would duplicate them. Brainstorm merges `"claudeMdExcludes": ["**/.claude/rules/vendored/**"]` into the repo's gitignored `.claude/settings.local.json`; that setting matches globs against absolute paths and applies to rules files, so the author's sessions skip the directory while a collaborator's load it. The exclusion is per machine.
+- **Buckets**: craft rules for an artifact class the project produces are always vendored; doc-hygiene rules only when prose docs are a primary artifact; personal-identity rules (the author's own voice) never.

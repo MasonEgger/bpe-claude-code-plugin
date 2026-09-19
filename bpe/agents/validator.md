@@ -38,7 +38,8 @@ The dispatch prompt contains these fields. Parse them at the top of your turn:
 
 1. Read `${CLAUDE_PLUGIN_ROOT}/references/validator-protocol.md`. Verify your understanding of the schema and severity ladder.
 2. Parse the dispatch prompt fields above. Echo what you parsed in user-facing text so the orchestrator transcript captures it.
-3. Obtain the diff. Run `git diff HEAD` (or the source the orchestrator specified). Read the changed files in full with the Read tool; the diff alone misses surrounding context that often matters for domain rules.
+3. Obtain the diff. Run `git diff HEAD` and `git diff HEAD --name-only` (or the source the orchestrator specified). Read the changed files in full with the Read tool; the diff alone misses surrounding context that often matters for domain rules.
+   - Read spec.md's fences: `## Invariants`, `## Non-goals`, and the `**Deferred:**` list under `## Roadmap / phase log`, skipping any that is absent. The checks, severities, and `rule` identifiers are the "Spec fences" section of the protocol doc.
    - Also read `.ai-sessions/implementation-notes.md` if it exists. Any `## Step N` section corresponds to a documented mid-step deviation from plan.md; treat those as accepted context when evaluating the diff, not as findings to flag. File format is documented in the "implementation-notes.md Format" section of `${CLAUDE_PLUGIN_ROOT}/references/session-management.md`.
 4. Load consultation tools.
    - If `MCPs:` is non-empty: for each entry, use `ToolSearch` with `select:<name>` to load the tool schema. If a tool fails to load, record it in `notes` and continue with the rest.
@@ -53,7 +54,7 @@ The dispatch prompt contains these fields. Parse them at the top of your turn:
    - message: the one-line description from the linter.
    - reference: the linter config path or a documentation URL, if available.
    Emit these findings alongside the skill/MCP-sourced findings in the same block. If a linter fails to run (not installed, config missing), record the failure in `notes` and continue with the remaining linters; a linter that cannot run is not a hard failure.
-6. Review the diff against the loaded guidance. For each issue, draft a finding with severity, file, message, and (when known) line, rule, suggested_fix, reference. Stay grounded: every finding must trace back to a specific rule from a consulted skill or MCP. Do not invent rules.
+6. Review the diff against the spec fences first, then against the loaded guidance. For the fences: apply the two mechanical checks (`deps: frozen` and `paths:` against the `--name-only` list from step 3), then judge the prose Invariants, Non-goals, and Deferred entries against the diff, emitting findings with the severities and `rule` identifiers the protocol's "Spec fences" table assigns. For everything else, draft a finding with severity, file, message, and (when known) line, rule, suggested_fix, reference. Stay grounded: every finding must trace back to a specific rule from a consulted skill or MCP, or to a specific fence line in spec.md. Do not invent rules.
 7. Assemble the findings block per the schema in the protocol doc. Set `verdict` to the worst severity present (`block` if any block, `warn` if any warn and no block, `clean` otherwise).
 8. Validate the block. Pipe it through `${CLAUDE_PLUGIN_ROOT}/scripts/validate-findings.py`. If the script exits 0, use the canonical form it printed. If it exits 1, read the stderr message, fix the block, and retry once. A second failure is a Failure report (see below).
 9. Return. Output the validated canonical findings block as the last content in your turn. No prose after it.

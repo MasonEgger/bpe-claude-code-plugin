@@ -8,7 +8,7 @@ Executor-specific detail (mode-by-mode invariants, report field semantics, orche
 
 1. `bpe:goal` (orchestrator). Owns the per-step state machine. Reads the per-section Tools block from `plan.md`. Dispatches the executor and the validator(s) in the right order. Enforces the iteration cap. Never commits, never edits files.
 2. `bpe:step-executor` (worker). Three modes: `implement` (TDD, no commit), `fix` (apply validator findings, no commit), `finalize` (session summary, commit, push). Owns the commit transaction in `finalize` only.
-3. `bpe:validator` (QA). Read-only review of the uncommitted diff against MCPs and skills passed in by the orchestrator. Emits a structured findings block. Never edits, never commits, never dispatches other agents.
+3. `bpe:validator` (QA). Read-only review of the uncommitted diff against MCPs and skills passed in by the orchestrator, and against the spec's fences (see "Spec fences" below). Emits a structured findings block. Never edits, never commits, never dispatches other agents.
 
 ## Per-step dispatch flow
 
@@ -24,6 +24,7 @@ For each unchecked item in `todo.md` the orchestrator runs this state machine. S
 3. iter = 1
 
 4. Dispatch validator(s) with the section's MCP and skill lists.
+     The validator also reads spec.md's fences itself; nothing is passed for that.
      Validator returns a findings block per the schema below.
      Orchestrator runs scripts/validate-findings.py on each block.
      A malformed block is a hard failure: stop the loop.
@@ -160,6 +161,29 @@ New plans emit `**Tools:**` only.
 ## Tool-list propagation
 
 `bpe:brainstorm` enumerates available MCPs and skills, asks the user which apply to the project, and writes them to `spec.md` under `## Available tooling`. `bpe:plan` propagates that list per-section under `**Tools:**` (legacy plans: `**Validator consults:**`, per the transitional read above). `bpe:goal` reads the per-section block when dispatching the validator for a step in that section.
+
+## Spec fences
+
+spec.md carries three fences that hold across every phase, defined in `references/session-management.md`: `## Invariants` (rules, some of them checkable), `## Non-goals` (never), and the `**Deferred:**` list under `## Roadmap / phase log` (not now).
+Three layers enforce them.
+The plan writer honors them when drafting (`skills/plan/SKILL.md`, "Honor the Spec's Fences").
+The executor self-checks the diff against them before reporting ready (`skills/execute-plan/SKILL.md` step 8 interactively; the same check in `mode=implement`, per `step-executor-protocol.md`).
+The validator checks them on every dispatch as an independent second look, reading spec.md itself; the orchestrator passes nothing for this.
+
+Checks and the findings they produce:
+
+| Fence | Check | Severity | `rule` |
+|---|---|---|---|
+| `- deps: frozen` | The diff touches a dependency manifest or lockfile (pyproject.toml, uv.lock, package.json, package-lock.json, Cargo.toml, Cargo.lock, go.mod, go.sum, or equivalents). Mechanical: `git diff HEAD --name-only`. | block | `spec.deps-frozen` |
+| `- paths: <glob>[, <glob>]` | A changed file matches none of the globs. Mechanical: `git diff HEAD --name-only` against the globs. | block | `spec.paths` |
+| Any other Invariants bullet | The diff violates the rule as written. Judged, grounded in the bullet's text. | block for a contract violation, warn for a pattern or style rule | `spec.invariant` |
+| A `## Non-goals` entry | The diff implements something listed there. Judged. | block | `spec.non-goal` |
+| A `**Deferred:**` entry | The diff implements something listed there. Judged. A scope leak, not a bonus: the fix is to remove it, or to promote the item into `## Goals` by a spec change. | warn | `spec.deferred` |
+
+Fence findings use the same schema as every other finding.
+`message` names the fence text and the offending file; `reference` points at the spec section.
+A spec that lacks a section has no fence of that kind; do not invent one.
+A section whose Tools block is `none` gets no validator dispatch and relies on the executor's self-check: the plan writer chose that cost trade-off, and the plan itself was drafted inside the fences.
 
 ## Hard rules
 

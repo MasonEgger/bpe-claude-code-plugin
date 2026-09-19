@@ -11,10 +11,10 @@ The `python` plugin formerly hosted here moved to a private marketplace in July 
 
 | Command | Purpose |
 |---|---|
-| `/bpe:brainstorm` | Iterative Q&A to develop a project specification (`spec.md`) |
-| `/bpe:retrofit` | Retrofit a BPE-compatible `spec.md` onto an existing project that lacks one, via a shortened Q&A focused on the gaps |
+| `/bpe:brainstorm` | Iterative Q&A to develop a project specification (`spec.md`), or to merge the next phase into an existing one |
+| `/bpe:retrofit` | Retrofit a BPE-compatible `spec.md` onto an existing project that lacks one, via a shortened Q&A focused on the gaps; `--resync` reconciles an existing spec to the code |
 | `/bpe:plan` | Transform spec into an implementation roadmap (`plan.md` + `todo.md`) of TDD Feature steps and checklist Task steps |
-| `/bpe:execute-plan` | Implement the next unchecked step as written: RED-GREEN-REFACTOR for Feature steps, Scope/Tooling/Do/Verify/Document for Task steps |
+| `/bpe:execute-plan` | Implement the next unchecked step as written: RED-GREEN-REFACTOR for Feature steps, Scope/Tooling/Do/Verify/Document for Task steps; checks the diff against the spec's fences before marking it done |
 | `/bpe:goal` | Wrap the loop in an autonomous `/goal` run: dispatches a fresh subagent per step, gates each one behind a read-only validator, commits per step |
 | `/bpe:gh-issue` | Fetch a GitHub issue and route to brainstorm or plan based on detail level |
 | `/bpe:commit-message` | Generate a commit message explaining what was changed |
@@ -27,6 +27,8 @@ The `python` plugin formerly hosted here moved to a private marketplace in July 
 
 The loop: Brainstorm a spec through dialogue, Plan it into right-sized steps, Execute one step at a time, then Review and Record lessons for next session.
 Everything else in the table serves that spine.
+The spec is permanent and edited in place; it carries the project's invariants, its non-goals, and the work deferred for later, which together fence every phase.
+On shared repos brainstorm can vendor your own rules into the repo so contributors' agents follow them; the plugin README's "The Spec" and "Vendored Rules" sections have the details.
 `/bpe:review` and `/bpe:apply-review` give you an interactive HTML pass over the BPE artifacts themselves.
 `/bpe:handoff` and `/bpe:wtf-wid` exist because a run outlives any single context window.
 Format specs and workflow rules for `.ai-sessions/` live in `bpe/references/session-management.md`, read directly by the relevant skills.
@@ -39,7 +41,7 @@ The parent session orchestrates and dispatches one subagent per step, so the par
 | Agent | Model | Role |
 |---|---|---|
 | `bpe:step-executor` | sonnet | Executes one plan step per dispatch in `implement`, `fix`, or `finalize` mode |
-| `bpe:validator` | opus | Read-only QA gate between implement and finalize; checks the uncommitted diff and returns structured findings |
+| `bpe:validator` | opus | Read-only QA gate between implement and finalize; checks the uncommitted diff against declared tools and the spec's fences, returns structured findings |
 | `bpe:cheap-research` | sonnet | External lookups for `/bpe:plan`, `/bpe:brainstorm`, and `/bpe:retrofit` |
 
 The validator is dispatched by the orchestrator, not invoked directly.

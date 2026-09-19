@@ -10,10 +10,10 @@ This plugin packages the BPE loop - a structured workflow for building software 
 
 | Command | Purpose |
 |---|---|
-| `/bpe:brainstorm` | Iterative Q&A to develop a project specification (`spec.md`) |
-| `/bpe:retrofit` | Retrofit a BPE-compatible `spec.md` onto an existing project that lacks one. Reads repo state, runs a shortened Q&A on the gaps; pass `--replace` to overwrite an existing spec |
-| `/bpe:plan` | Transform spec into implementation roadmap (`plan.md` + `todo.md`). Refuses when `plan.md` already exists: pass `--archive` to preserve it under `.ai-sessions/` before regenerating, or `--regen` to discard and regenerate. Dispatches `bpe:cheap-research` for external tool discovery by default; pass `--no-discover` to skip it |
-| `/bpe:execute-plan` | Implement one step at a time following the plan's sub-steps: TDD Feature steps or checklist Task steps |
+| `/bpe:brainstorm` | Iterative Q&A to develop a project specification (`spec.md`). When a spec already exists, merges the next phase into it (phase-only Q&A, diff shown before saving). Proposes invariants, sorts adjacent work into never / later / now, and on shared repos offers to vendor your rules for contributors; all confirmed in one question |
+| `/bpe:retrofit` | Retrofit a BPE-compatible `spec.md` onto an existing project that lacks one. Reads repo state, runs a shortened Q&A on the gaps; pass `--resync` to reconcile an existing spec to the code (and refresh vendored rules), or `--replace` to overwrite it |
+| `/bpe:plan` | Transform spec into implementation roadmap (`plan.md` + `todo.md`). Refuses when `plan.md` already exists: pass `--archive` to preserve it under `.ai-sessions/` before regenerating, or `--regen` to discard and regenerate. Dispatches `bpe:cheap-research` for external tool discovery by default; pass `--no-discover` to skip it. Drafts inside the spec's fences (Invariants, Non-goals, Deferred) and refuses to plan around them; `--archive` also records the retired plan under the spec's `Shipped:` list |
+| `/bpe:execute-plan` | Implement one step at a time following the plan's sub-steps: TDD Feature steps or checklist Task steps. Checks the diff against the spec's fences before marking the step done |
 | `/bpe:gh-issue` | Fetch a GitHub issue and route to brainstorm or plan |
 | `/bpe:commit-message` | Generate a commit message explaining what was changed |
 | `/bpe:session-summary` | Generate session recap and capture lessons learned |
@@ -33,7 +33,7 @@ The underlying file layout moved from `commands/<name>.md` to `skills/<name>/SKI
 | Agent | Model | Purpose |
 |---|---|---|
 | `bpe:step-executor` | sonnet | Worker for `/bpe:goal` autonomous runs. Executes one plan step per dispatch in `implement`, `fix`, or `finalize` mode. |
-| `bpe:validator` | opus | Read-only QA reviewer dispatched between `implement` and `finalize`. Checks the uncommitted diff against declared skills, MCPs, and linters, returns a structured findings block. |
+| `bpe:validator` | opus | Read-only QA reviewer dispatched between `implement` and `finalize`. Checks the uncommitted diff against declared skills, MCPs, and linters, and against the spec's fences (Invariants, Non-goals, Deferred); returns a structured findings block. |
 | `bpe:cheap-research` | sonnet | Fast, cheap external research: tool discovery, docs lookup, quick fact-checks. Dispatched by `/bpe:plan`, `/bpe:brainstorm`, and `/bpe:retrofit` when they need external info. |
 
 ## The BPE Loop
@@ -42,6 +42,47 @@ The underlying file layout moved from `commands/<name>.md` to `skills/<name>/SKI
 2. **Plan** - Break the spec into right-sized implementation steps: TDD Feature steps for application logic, checklist Task steps for everything else
 3. **Execute** - Implement steps one at a time, following the plan exactly
 4. **Review & Record** - Summarize the session and capture lessons for next time
+
+## The Spec
+
+`spec.md` is permanent.
+It describes what the project should be right now, is edited in place as the project evolves, and is never replaced per phase; plans and todos are the per-phase artifacts, archived under `.ai-sessions/<slug>/` when a phase ends.
+`/bpe:brainstorm` and `/bpe:retrofit` write the same nine sections in the same order, so `/bpe:plan` consumes either:
+
+| Section | Holds |
+|---|---|
+| `## Starting context` | Your context answer, verbatim |
+| `## Project overview` | What the project is and where it is going |
+| `## Invariants` | Rules that hold across every phase. Checkable ones carry a key prefix the validator enforces mechanically: `- deps: frozen` (no dependency changes without a spec change) and `- paths: src/**` (changes stay inside these paths). Everything else is prose a reader judges |
+| `## Available tooling` | The MCPs, skills, and verification command the validator and executor use |
+| `## Roadmap / phase log` | `Shipped:` (one line per archived plan, appended by `/bpe:plan --archive`), `Upcoming:` (planned phases), `Deferred:` (work deliberately not done now but worth revisiting) |
+| `## Goals` | The requirements, edited in place |
+| `## Non-goals` | What the project never does |
+| `## Component boundaries` | Independently implementable components |
+| `## Success criteria` | How you will know it is done |
+
+Work the project is not doing sorts by commitment: never goes in Non-goals, not now goes in Deferred, now goes in Goals.
+Brainstorm proposes the sort for the features an eager agent would otherwise bolt on (password reset next to login, rate limiting next to an endpoint), defaulting to Deferred, and you confirm in one question.
+Non-goals plus Deferred is the scope fence for every phase: the plan writer drafts inside it, the executor checks its diff against it before marking a step done, and the validator checks it again in autonomous runs.
+
+When a spec already exists, `/bpe:brainstorm` runs in merge mode: Q&A for the new phase only, the merged spec written to a scratch file and shown as a diff, saved in place on confirm.
+When the code has drifted from the spec, `/bpe:retrofit --resync` reads the repo again and reconciles the spec to it.
+
+## Vendored Rules
+
+On a shared repo (public remote, or a LICENSE plus a public-host remote), `/bpe:brainstorm` offers to copy the hard rules from your own skills and rules into the repo, so a contributor's agent follows them without having your skills.
+You confirm the set in the same question as everything else.
+On a solo or private repo nothing is written; the spec's Invariants just name the governing skill.
+
+What it writes:
+
+- `.claude/rules/vendored/<domain>.md`: a verbatim copy of the source's `## Hard Rules` block (or a confirmed extract when the source has none), with `paths:` frontmatter so it loads only for matching files. Claude Code discovers `.claude/rules/` recursively, so contributors get these automatically.
+- One pointer bullet per file in `## Invariants`: `- Python: per .claude/rules/vendored/python.md`.
+- `"claudeMdExcludes": ["**/.claude/rules/vendored/**"]` in your gitignored `.claude/settings.local.json`, so your own sessions skip the copies (your live skills are the source) while contributors load them. The exclusion is per machine.
+
+Sources are your session skills, `~/.claude/rules/*.md`, and any file `~/.claude/CLAUDE.md` imports.
+Craft rules for an artifact class the project produces are always proposed; doc-hygiene rules only when prose docs are a primary artifact; a source marked `never vendored` in its description is never proposed, which is where personal voice belongs.
+Give a skill a `## Hard Rules` block (bullets only, self-contained, nothing private) and vendoring becomes a byte-for-byte copy; `/bpe:retrofit --resync` refreshes the copies from their sources with a diff.
 
 ## Session Management
 
@@ -66,7 +107,7 @@ flowchart TD
     D --> E["Parent loop: one dispatch per turn"]
     E --> F["Agent(bpe:step-executor mode=implement)<br/>fresh context, work left uncommitted"]
     F --> G{"Section's Tools<br/>block declares<br/>validators?"}
-    G -->|yes| H["Agent(bpe:validator)<br/>read-only, consults declared<br/>skills/MCPs/linters"]
+    G -->|yes| H["Agent(bpe:validator)<br/>read-only, consults declared<br/>skills/MCPs/linters + the spec's fences"]
     H -->|"block/warn, iter < 3"| I["Agent(bpe:step-executor mode=fix)"]
     I --> H
     G -->|no| J["Agent(bpe:step-executor mode=finalize)<br/>session summary, single commit, push"]
