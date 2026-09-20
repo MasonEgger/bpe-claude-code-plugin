@@ -1,6 +1,6 @@
 ---
 name: retrofit
-description: "Retrofit a BPE-compatible spec.md onto an existing project that lacks one, or resync an existing spec.md to the code. Reads repo state and runs a shortened Q&A focused on gaps."
+description: "Retrofit a BPE-compatible spec.md onto an existing project that lacks one, or resync an existing spec.md to the code, migrating a pre-0.7 spec to the canonical section order along the way. Reads repo state and runs a shortened Q&A focused on gaps."
 model: claude-opus-4-8
 disable-model-invocation: true
 argument-hint: "[--replace | --resync]"
@@ -12,7 +12,7 @@ Add a BPE-compatible spec.md to an existing project that never went through `/bp
 Most of what a spec needs already lives in the repo; read it there instead of asking.
 The shortened Q&A covers only the gaps the repo cannot answer: intent, direction, and scope.
 The resulting spec.md matches the format `/bpe:brainstorm` produces, so `/bpe:plan` consumes either without knowing which skill wrote it.
-With `--resync`, retrofit instead reconciles an existing spec.md to what the code does now and refreshes any vendored rules (see Resync Mode at the end).
+With `--resync`, retrofit instead reconciles an existing spec.md to what the code does now, migrates a pre-0.7 spec to the canonical section order, and refreshes any vendored rules (see Resync Mode at the end).
 
 ## Procedure
 
@@ -86,16 +86,40 @@ With `--resync`, retrofit instead reconciles an existing spec.md to what the cod
 
 ## Resync Mode
 
-`/bpe:retrofit --resync` is the corrective for spec drift.
-spec.md is permanent and edited in place, so between phases the code can move without the spec following; resync reads the code again and reconciles the spec to it.
+`/bpe:retrofit --resync` is the corrective for spec drift, in both directions it happens: code that moved without the spec following, and a spec whose structure predates the canonical section order.
+spec.md is permanent and edited in place, so drift accumulates between phases; resync reads the code again and reconciles the spec to it.
 
 1. Read the whole existing spec.md, then run step 2 (Read repo state) against the current tree.
-2. Compare what the repo shows against what the spec claims, section by section: `## Project overview` and `## Goals` against what the code does now, `## Invariants` against the manifests and lockfile, `## Available tooling` against the session, `**Shipped:**` against the `.ai-sessions/<slug>/` archives on disk.
-3. Ask only about contradictions, one question at a time: a goal the code has plainly delivered or abandoned, an invariant the code no longer honors, a tool that no longer applies.
+2. Check structure: compare the spec's H2 headings against the canonical order under "Spec Section Order (spec.md)" in `${CLAUDE_PLUGIN_ROOT}/references/session-management.md`.
+   When sections are missing, renamed, or accreted beyond that list (a pre-0.7 spec, or one edited by hand), run the Structure Migration pass below and fold its output into the same scratch file as the content reconciliation: one diff, one confirm.
+3. Compare what the repo shows against what the spec claims, section by section: `## Project overview` and `## Goals` against what the code does now, `## Invariants` against the manifests and lockfile, `## Available tooling` against the session, `**Shipped:**` against the `.ai-sessions/<slug>/` archives on disk.
+4. Ask only about contradictions, one question at a time: a goal the code has plainly delivered or abandoned, an invariant the code no longer honors, a tool that no longer applies.
    Do not re-run the blindspot pass or the full Q&A; resync confirms reality, it does not re-plan intent.
-4. Write the reconciled spec to a scratch file, show `diff -u spec.md <scratch>`, and move it over spec.md only after the user confirms.
+   The one exception is the migration of a phase-shaped spec (Structure Migration step 4), which may re-open the Q&A topics the old file cannot answer.
+5. Write the reconciled spec to a scratch file, show `diff -u spec.md <scratch>`, and move it over spec.md only after the user confirms.
    Superseded text is rewritten in place, never appended.
-5. If `.claude/rules/vendored/` exists, refresh it: for each vendored file, obtain the current source text per brainstorm's Vendoring step 3, write it to the scratch directory, and show `diff -u` against the vendored copy.
+6. If `.claude/rules/vendored/` exists, refresh it: for each vendored file, obtain the current source text per brainstorm's Vendoring step 3, write it to the scratch directory, and show `diff -u` against the vendored copy.
    Replace only the files the user confirms.
    Report any vendored file whose source can no longer be found (a renamed skill, a deleted rules file) rather than deleting it.
-6. Do not touch plan.md or todo.md; resync is a spec operation.
+7. Do not touch plan.md or todo.md; resync is a spec operation.
+   Phase content the Structure Migration pass relocates lands in `.ai-sessions/`, never in plan.md or todo.md.
+
+### Structure Migration (pre-0.7 and hand-drifted specs)
+
+Maps what exists, creates what is missing, and relocates what never belonged.
+Content is preserved or moved with the user's confirmation, never silently dropped.
+
+1. Map existing sections onto the canonical nine, preserving their content.
+   Mission and overview prose goes to `## Project overview`.
+   Requirement and design sections sort into `## Goals`, `## Component boundaries`, and `## Success criteria`.
+   Out-of-scope prose splits between `## Non-goals` (never) and `**Deferred:**` (not now); the user confirms that sort.
+2. Classify what maps nowhere.
+   Dated addenda, work packages, interview agendas, and research notes are phase content, not project law.
+   Propose moving each into the `.ai-sessions/<slug>/` archive of the phase it drove (or `.ai-sessions/research/` for research material), one confirmation per section.
+3. Create the missing sections.
+   `## Starting context` absent: ask the one context question from Procedure step 3 now and date the answer, so a later reader knows it was recorded at migration rather than at project start.
+   `## Invariants`: derive candidates from the repo-state read plus everything the old spec stated as mandatory or forbidden, and confirm them in one question.
+   `## Roadmap / phase log`: build `**Shipped:**` from the `.ai-sessions/<slug>/` archives on disk, one line each summarized from the archive's accomplishment.md; take `**Upcoming:**` from the user; fill `**Deferred:**` from the sort in step 1.
+4. A phase-shaped spec, where the whole file describes one work package rather than the project, migrates the same way.
+   The repo-state read and the Procedure step 4 topics supply the project-level content the old file cannot; this is the one case where resync re-opens the shortened Q&A, and only for those gaps.
+   The file's phase content moves to its archive per step 2, and nothing is dropped without the user seeing it in the diff.
