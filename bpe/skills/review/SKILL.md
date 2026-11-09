@@ -189,9 +189,9 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/review-server.py <html-path> <feedback-pat
 
 The script:
 
-- Kills any prior `/bpe:review` server via the PID file at `/tmp/bpe-review-server.pid`.
+- Kills only a prior `/bpe:review` server for the *same artifact* via that artifact's PID file at `/tmp/bpe-review-<key>.pid`, where `<key>` is the first 8 hex of the sha256 of the absolute source-markdown path. A review of a different file keeps its own key and is left untouched.
 - Binds to the local Tailscale IPv4 if `tailscale` is installed and the daemon is up, unless `--bind` overrides it; otherwise falls back to `127.0.0.1`. Picks a random free port either way. Tailscale binding lets the user review on a phone or second laptop without extra configuration.
-- Writes the URL to `/tmp/bpe-review-server.url` for Step 4 to read, then removes the file on clean shutdown.
+- Writes the URL to `/tmp/bpe-review-<key>.url` (same `<key>` as the PID file) for Step 4 to read, then removes the file on clean shutdown.
 - Inlines `review.css` (the authoritative design layer), Tailwind, and Mermaid into the page `<head>`.
 - Injects the save, scroll-spy, progress-bar, and decision-sync JavaScript into the HTML.
 - Auto-opens the URL in the user's default browser **only** when bound to `127.0.0.1`; on a tailnet binding the browser is more likely to live on a different device, so we print the URL instead of guessing.
@@ -200,7 +200,13 @@ The script:
 
 ## Step 4: Confirm
 
-Read the server URL from `/tmp/bpe-review-server.url` (preferred; survives the background process's stdout going wherever it goes) or, failing that, from the background process's stdout where the script prints `BPE review server: http://…:PORT/`. Then tell the user:
+Read the server URL from `/tmp/bpe-review-<key>.url` (preferred; survives the background process's stdout going wherever it goes) or, failing that, from the background process's stdout where the script prints `BPE review server: http://...:PORT/`. The `<key>` is the first 8 hex of the sha256 of the absolute source-markdown path, so compute it from the same artifact you passed to the server:
+
+```bash
+python3 -c "import hashlib,os,sys; print(hashlib.sha256(os.path.realpath(sys.argv[1]).encode()).hexdigest()[:8])" <source-markdown-path>
+```
+
+That is the same computation the server uses, so the URL file you read belongs to the server you just started. Then tell the user:
 
 - The server URL (clickable).
 - The artifact being reviewed.

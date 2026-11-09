@@ -43,10 +43,10 @@ Mirrors plan.md. Check off each top-level step as it finalizes; sub-steps track 
 
 ## Section 5: Review server reliability (#33, #36, #47)
 
-- [ ] Step 1: Key the PID and URL files per artifact
-  - [ ] review-server.py: per-artifact sha256-keyed PID/URL paths threaded through all call sites
-  - [ ] review/SKILL.md Step 4: document the matching key computation
-  - [ ] Verify: module loads; key deterministic + artifact-specific; sha256 in both files
+- [x] Step 1: Key the PID and URL files per artifact
+  - [x] review-server.py: per-artifact sha256-keyed PID/URL paths threaded through all call sites
+  - [x] review/SKILL.md Step 4: document the matching key computation
+  - [x] Verify: module loads; key deterministic + artifact-specific; sha256 in both files
 - [ ] Step 2: Unlink only self-owned files and announce a kill
   - [ ] finally unlinks only when the PID file holds this process's PID
   - [ ] kill_existing_server prints when it signals a predecessor

@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import shutil
@@ -15,8 +16,6 @@ from datetime import datetime
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
-PID_FILE = Path("/tmp/bpe-review-server.pid")
-URL_FILE = Path("/tmp/bpe-review-server.url")  # readable by the /bpe:review command
 SHUTDOWN_DELAY_SECONDS = 5  # give the "Saved" page time to render before quitting
 TAILSCALE_PROBE_TIMEOUT_SECONDS = 2
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -52,19 +51,55 @@ def pick_bind_address() -> str:
     return "127.0.0.1"
 
 
-def kill_existing_server() -> None:
-    if not PID_FILE.exists():
+def state_paths(artifact: Path) -> tuple[Path, Path]:
+    """Return the (pid_file, url_file) paths for a given review artifact.
+
+    The files are keyed by the first 8 hex of the sha256 of the artifact's
+    absolute real path, so concurrent reviews of different files get their own
+    PID and URL files instead of fighting over one machine-wide pair. A second
+    review of the same file still resolves to the same key, so restarting a
+    review replaces only its own server. The /bpe:review skill recomputes this
+    key to read the URL file for the server it just started; keep the "/tmp"
+    literal and the realpath hashing in sync with its Step 4 shell.
+
+    Args:
+        artifact: The source-markdown path passed on argv.
+
+    Returns:
+        The PID file path and the URL file path for this artifact.
+    """
+    key = hashlib.sha256(os.path.realpath(artifact).encode()).hexdigest()[:8]
+    return Path(f"/tmp/bpe-review-{key}.pid"), Path(f"/tmp/bpe-review-{key}.url")
+
+
+def kill_existing_server(pid_file: Path) -> None:
+    """Terminate the server recorded in pid_file and remove the file.
+
+    Reads the PID from pid_file, sends it SIGTERM, then deletes the file so a
+    stale entry never blocks a new server for the same artifact. SIGTERM
+    delivery errors (a malformed file, a process that already exited, or a
+    permission failure) are swallowed; the file is removed either way.
+
+    Args:
+        pid_file: Path to the PID file for this artifact's review server.
+    """
+    if not pid_file.exists():
         return
     try:
-        old_pid = int(PID_FILE.read_text().strip())
+        old_pid = int(pid_file.read_text().strip())
         os.kill(old_pid, 15)
     except (ValueError, ProcessLookupError, PermissionError):
         pass
-    PID_FILE.unlink(missing_ok=True)
+    pid_file.unlink(missing_ok=True)
 
 
-def write_pid_file() -> None:
-    PID_FILE.write_text(str(os.getpid()))
+def write_pid_file(pid_file: Path) -> None:
+    """Write this process's PID to pid_file.
+
+    Args:
+        pid_file: Path to the PID file for this artifact's review server.
+    """
+    pid_file.write_text(str(os.getpid()))
 
 
 def validate_feedback(payload: object) -> str | None:
@@ -505,9 +540,10 @@ def main() -> None:
         print(f"HTML file not found: {html_path}", file=sys.stderr)
         sys.exit(1)
 
-    kill_existing_server()
-    URL_FILE.unlink(missing_ok=True)
-    write_pid_file()
+    pid_file, url_file = state_paths(Path(source_artifact))
+    kill_existing_server(pid_file)
+    url_file.unlink(missing_ok=True)
+    write_pid_file(pid_file)
 
     html_text = html_path.read_text(encoding="utf-8")
     shutdown_event = threading.Event()
@@ -527,7 +563,7 @@ def main() -> None:
     # Write the URL to a well-known file so the /bpe:review command can surface
     # it to the user reliably, even when stdout from the background process is
     # not directly readable. Removed on clean shutdown.
-    URL_FILE.write_text(url)
+    url_file.write_text(url)
     print(f"BPE review server: {url}", flush=True)
     if bind_addr != "127.0.0.1":
         print(
@@ -550,8 +586,8 @@ def main() -> None:
         shutdown_event.wait()
     finally:
         server.shutdown()
-        PID_FILE.unlink(missing_ok=True)
-        URL_FILE.unlink(missing_ok=True)
+        pid_file.unlink(missing_ok=True)
+        url_file.unlink(missing_ok=True)
     print(f"Saved feedback to {feedback_path}", flush=True)
 
 
