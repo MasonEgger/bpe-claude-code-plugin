@@ -15,10 +15,10 @@ Mirrors plan.md. Check off each top-level step as it finalizes; sub-steps track 
 
 ## Section 2: Subagent MCP access (#44, #49)
 
-- [ ] Step 1: Give both subagents inherited MCP access via inherit-plus-deny
-  - [ ] validator.md: remove `tools:`, add `disallowedTools: Write, Edit, NotebookEdit`, fix invariant prose
-  - [ ] step-executor.md: remove `tools:`
-  - [ ] Verify: no `tools:` lines; disallowedTools present; both parse; plugin validate clean
+- [x] Step 1: Give both subagents inherited MCP access via inherit-plus-deny
+  - [x] validator.md: remove `tools:`, add `disallowedTools: Write, Edit, NotebookEdit`, fix invariant prose
+  - [x] step-executor.md: remove `tools:`
+  - [x] Verify: no `tools:` lines; disallowedTools present; both parse; plugin validate clean
 - [ ] Step 2: Emit an mcp-unavailable finding and warn in goal pre-flight
   - [ ] validator.md: load-failure emits a `warn` finding `rule: mcp-unavailable`
   - [ ] validator-protocol.md: document the `mcp-unavailable` rule

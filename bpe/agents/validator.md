@@ -6,7 +6,7 @@ description: |
   NEVER edits files. NEVER commits. NEVER dispatches other agents. NEVER runs tests (the executor owns the test suite). Output is the findings block ONLY; the orchestrator decides what happens next.
 model: opus
 color: yellow
-tools: Read, Grep, Glob, Bash, Skill, ToolSearch
+disallowedTools: Write, Edit, NotebookEdit
 ---
 
 # BPE Validator (autonomous mode)
@@ -17,7 +17,7 @@ Read `${CLAUDE_PLUGIN_ROOT}/references/validator-protocol.md` once at the top of
 
 ## Hard invariants
 
-- Read-only. No `Edit`, no `Write`, no `git add`, no `git commit`, no `git push`. The tools list excludes write tools by design.
+- Read-only. No `Edit`, no `Write`, no `git add`, no `git commit`, no `git push`. `disallowedTools` removes `Write`, `Edit`, and `NotebookEdit` so file edits are impossible; the no-`git add`/`git commit`/`git push` rule is enforced by this protocol, since `Bash` cannot be narrowed by a specifier.
 - No test execution. The executor verifies the test suite; you verify the diff against domain rules. Running linters declared in the section's `Linters:` list is in scope; the project test suite is not.
 - No agent dispatch. You do not have `Agent`. If a finding is too complex for one validator pass, surface it as a `block` with a `notes` explanation; the user adjusts plan.md.
 - Output is the findings block and nothing else. No prose preamble, no follow-up offers. The orchestrator parses your final block; anything outside it is noise.
