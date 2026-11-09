@@ -1,7 +1,7 @@
 ---
 name: retrofit
 description: "Retrofit a BPE-compatible spec.md onto an existing project that lacks one, or resync an existing spec.md to the code, migrating a pre-0.7 spec to the canonical section order along the way. Reads repo state and runs a shortened Q&A focused on gaps."
-model: claude-opus-4-8
+model: opus
 disable-model-invocation: true
 argument-hint: "[--replace | --resync]"
 ---

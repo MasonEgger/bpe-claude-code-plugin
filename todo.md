@@ -4,9 +4,9 @@ Mirrors plan.md. Check off each top-level step as it finalizes; sub-steps track 
 
 ## Section 1: Model tier aliases (#50)
 
-- [ ] Step 1: Swap the claude-opus-4-8 frontmatter pins for the opus alias
-  - [ ] Change `model: claude-opus-4-8` to `model: opus` in the five skills + validator.md
-  - [ ] Verify: no frontmatter pin remains; all six frontmatters parse
+- [x] Step 1: Swap the claude-opus-4-8 frontmatter pins for the opus alias
+  - [x] Change `model: claude-opus-4-8` to `model: opus` in the five skills + validator.md
+  - [x] Verify: no frontmatter pin remains; all six frontmatters parse
 - [ ] Step 2: Add the dated Recommended Tier Map entry and align the doc copies
   - [ ] Add `### 2026-11-09` entry to model-profiles.md (keep 2026-08-08 as history)
   - [ ] Reconcile `.claude/bpe.local.md.example` (drop opus-4-8 pins, refresh date/comment)
