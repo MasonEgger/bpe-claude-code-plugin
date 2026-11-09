@@ -57,6 +57,23 @@ Three round trips through the fix loop. If the validator still reports `block` o
 
 `info` findings never trigger a fix loop. They land in the final commit message body: the orchestrator carries them into the finalize dispatch prompt as an `Info findings:` block (a finalize dispatch is a fresh context and cannot read earlier validator output), and the executor appends them to the commit message.
 
+## Finalize-red recovery
+
+A `mode=finalize` dispatch runs the test suite one final time before it commits.
+When that run goes red, the executor returns a `Failure:` block carrying the failing test output instead of a `Finalize-Report`.
+The orchestrator, not the validator, recovers from it; the validator never runs tests, so it cannot produce this finding on its own.
+
+The orchestrator synthesizes a findings block holding a single finding:
+
+- `severity: block`
+- `rule: finalize-test-failure`
+- `message`: the failing test output trimmed to the failing assertion and the test name.
+- `file`: the failing test file when the output names one, else the plan section name.
+
+The orchestrator builds the block, pipes it through `scripts/validate-findings.py`, dispatches `step-executor mode=fix` with it, and then continues the normal validator -> finalize path.
+The finalize red consumes one fix-loop iteration, under the same 3-iteration cap as any other `block` finding.
+Halt the loop with RESUME only when `iter == 3`, or when the finalize `Failure:` is not a test failure (a commit rejection, a push rejection, or a missing session summary); those cases halt immediately.
+
 ## Severity guidance
 
 - `block`: a correctness, security, or contract violation that the user would not want shipped. Triggers a fix loop.

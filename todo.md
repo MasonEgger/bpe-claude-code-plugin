@@ -28,10 +28,10 @@ Mirrors plan.md. Check off each top-level step as it finalizes; sub-steps track 
 
 ## Section 3: Finalize-red recovery (#43)
 
-- [ ] Step 1: Document and wire the synthesized finalize-test-failure recovery
-  - [ ] validator-protocol.md: define the synthesized block shape (`rule: finalize-test-failure`)
-  - [ ] goal/SKILL.md: re-enter the fix loop on a finalize red when iter < cap
-  - [ ] Verify: rule in both files; sample block passes validate-findings.py; iter guard + halt-at-cap present
+- [x] Step 1: Document and wire the synthesized finalize-test-failure recovery
+  - [x] validator-protocol.md: define the synthesized block shape (`rule: finalize-test-failure`)
+  - [x] goal/SKILL.md: re-enter the fix loop on a finalize red when iter < cap
+  - [x] Verify: rule in both files; sample block passes validate-findings.py; iter guard + halt-at-cap present
 
 ## Section 4: plan --archive archives only (#38)
 

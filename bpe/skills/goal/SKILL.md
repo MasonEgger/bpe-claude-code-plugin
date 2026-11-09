@@ -105,7 +105,7 @@ READ ${CLAUDE_PLUGIN_ROOT}/references/validator-protocol.md ONCE AT TURN START. 
 
 SEQUENTIAL DISPATCHES ONLY. One Agent call per turn. BPE steps share todo.md, git tree, test suite; parallel dispatches corrupt all three. After one dispatch + verification, YOUR TURN ENDS; the /goal evaluator decides if a new turn begins.
 
-Each committed step is EXACTLY ONE commit. No fixups, amends, or --no-verify. Every commit includes a new .ai-sessions/session-*.md (the executor's mode=finalize creates it; you verify it landed). Any Failure or rule violation => echo RESUME (below) and STOP.
+Each committed step is EXACTLY ONE commit. No fixups, amends, or --no-verify. Every commit includes a new .ai-sessions/session-*.md (the executor's mode=finalize creates it; you verify it landed). Any Failure (except a finalize test failure under the cap: step 7) or rule violation => echo RESUME (below) and STOP.
 
 Per turn:
 1. git rev-parse --abbrev-ref HEAD; abort if main/master.
@@ -119,6 +119,7 @@ Per turn:
    b. git show --stat --name-only <sha> | grep -E '^\.ai-sessions/session-.*\.md$' must be non-empty.
    c. Tests field must indicate exit 0.
    Any check fails => echo "BPE rule violation: <details>", echo RESUME, STOP.
+7b. Finalize Failure with test output and iter<3: build a finalize-test-failure block (validator-protocol.md), validate, dispatch mode=fix (iter+=1), resume. iter==3 or non-test failure => RESUME, STOP.
 8. Echo `git log -1 --format="%h %s"` and `git status --short`. YOUR TURN ENDS.
 
 RESUME:
@@ -150,7 +151,8 @@ This command writes the `/goal` argument to disk; it does not execute it. The us
 
 ## Step 5: Resume Path on Failure
 
-The goal loop halts on any `Failure:` from a subagent or `BPE rule violation:` from the orchestrator. The orchestrator playbook (Step 3) instructs the parent to echo a `RESUME:` block verbatim before stopping. That block is the recovery cheat-sheet; the paths below cover the common failure modes in more detail.
+The goal loop halts on any `Failure:` from a subagent or `BPE rule violation:` from the orchestrator, with one exception: a `mode=finalize` `Failure:` that carries failing test output and arrives with `iter < 3` re-enters the fix loop (per-turn step 7b) instead of halting, and only halts when `iter == 3` or the failure is not a test failure.
+The orchestrator playbook (Step 3) instructs the parent to echo a `RESUME:` block verbatim before stopping. That block is the recovery cheat-sheet; the paths below cover the common failure modes in more detail.
 
 ### Resume steps
 
