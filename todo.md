@@ -35,11 +35,11 @@ Mirrors plan.md. Check off each top-level step as it finalizes; sub-steps track 
 
 ## Section 4: plan --archive archives only (#38)
 
-- [ ] Step 1: Decouple --archive from regeneration
-  - [ ] plan/SKILL.md: `--archive` stops; `--archive --regen` combines; refusal message names all three
-  - [ ] Archive routine step 7 gated on `--regen`
-  - [ ] session-management.md: note archive-only semantics
-  - [ ] Verify: decoupled semantics present; routine gate confirmed
+- [x] Step 1: Decouple --archive from regeneration
+  - [x] plan/SKILL.md: `--archive` stops; `--archive --regen` combines; refusal message names all three
+  - [x] Archive routine step 7 gated on `--regen`
+  - [x] session-management.md: note archive-only semantics
+  - [x] Verify: decoupled semantics present; routine gate confirmed
 
 ## Section 5: Review server reliability (#33, #36, #47)
 
