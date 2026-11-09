@@ -120,6 +120,13 @@ The parsing and mapping procedure lives in `agents/validator.md` step 5 (Run dec
 Linters are declared per section or per step in plan.md; see the "Tools block" section below for the declaration format.
 A linter that fails to run (not installed, config missing) is recorded in the block's `notes`, not emitted as a finding.
 
+## MCP-unavailable findings
+
+When a declared MCP cannot be loaded, the validator emits a `warn` finding with `rule: mcp-unavailable` so the orchestrator sees it in the verdict rather than only in free-text `notes`.
+The `message` names the MCP that could not load and the reason when known; `file` is the plan section name, or `plan.md` when the section is unknown.
+The validator still records the failure in `notes` and continues consulting the rest of the declared tools.
+The finding participates in the fix loop like any other `warn`: the fix is usually a `plan.md` Tools-block correction, or confirming the MCP is configured in the session.
+
 ## Auto-discovery fallback
 
 The orchestrator always passes explicit MCP and skill lists. If the validator is dispatched without lists (ad-hoc human use), it falls back to:

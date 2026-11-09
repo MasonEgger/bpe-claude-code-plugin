@@ -19,12 +19,12 @@ Mirrors plan.md. Check off each top-level step as it finalizes; sub-steps track 
   - [x] validator.md: remove `tools:`, add `disallowedTools: Write, Edit, NotebookEdit`, fix invariant prose
   - [x] step-executor.md: remove `tools:`
   - [x] Verify: no `tools:` lines; disallowedTools present; both parse; plugin validate clean
-- [ ] Step 2: Emit an mcp-unavailable finding and warn in goal pre-flight
-  - [ ] validator.md: load-failure emits a `warn` finding `rule: mcp-unavailable`
-  - [ ] validator-protocol.md: document the `mcp-unavailable` rule
-  - [ ] goal/SKILL.md: pre-flight warns (not refuses) on a declared-but-absent MCP
-  - [ ] plan/SKILL.md: correct the executor-consults-MCPs claim
-  - [ ] Verify: rule present in both files; sample block passes validate-findings.py; frontmatter parses
+- [x] Step 2: Emit an mcp-unavailable finding and warn in goal pre-flight
+  - [x] validator.md: load-failure emits a `warn` finding `rule: mcp-unavailable`
+  - [x] validator-protocol.md: document the `mcp-unavailable` rule
+  - [x] goal/SKILL.md: pre-flight warns (not refuses) on a declared-but-absent MCP
+  - [x] plan/SKILL.md: correct the executor-consults-MCPs claim
+  - [x] Verify: rule present in both files; sample block passes validate-findings.py; frontmatter parses
 
 ## Section 3: Finalize-red recovery (#43)
 

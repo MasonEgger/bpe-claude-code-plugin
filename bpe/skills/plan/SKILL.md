@@ -237,7 +237,7 @@ A `no relevant results` return caches nothing: leave spec.md untouched and tell 
 
 Read spec.md's `## Available tooling` section (Pass 1 of Tool discovery above) before drafting plan.md.
 For each plan section (top-level `##` heading in plan.md), decide which subset of the project's available skills, MCPs, and linters applies to that section's steps.
-Both consumers draw from the same block: the executor invokes the Skills and consults the MCPs while doing the work; the `bpe:validator` consults the Skills and MCPs for guidance AND runs the Linters as adversarial review.
+Both consumers draw from the same block: the executor, which inherits the session's MCP tools, invokes the Skills and consults the MCPs while doing the work; the `bpe:validator` consults the Skills and MCPs for guidance AND runs the Linters as adversarial review.
 Record the decision immediately under the section heading using this exact format:
 
 ```markdown

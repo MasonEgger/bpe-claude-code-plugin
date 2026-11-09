@@ -61,6 +61,12 @@ The resolved command need not be a test runner; for a prose or config project it
 
 The Tools-block count from pre-flight (`**Tools:**`, or legacy `**Validator consults:**`) is informational, not a refusal trigger. Zero is fine; the orchestrator treats every section as `none` and skips the validator loop.
 
+**Warn (do not refuse) on a declared-but-absent MCP.**
+For each plan section's `**Tools:**` block, read its `MCPs:` sub-field (skip `none`, a missing sub-field, or a legacy `**Validator consults:**` block with no MCPs).
+For each MCP named, check whether it is present in the session: use `ToolSearch` with `select:<name>` (or scan the session's tool list) and treat a tool that will not resolve as not present in the session.
+When an MCP is not present in the session, print a warning naming the section and the MCP, then continue; the validator will re-check at dispatch and emit an `mcp-unavailable` finding if it still cannot load.
+This is a warning only, distinct from the hard refusals above; it never stops the run.
+
 Do NOT auto-create branches, auto-edit `.gitignore`, or auto-anything in pre-flight. These are deliberate decisions for the user.
 
 ## Step 2: Build the Goal Condition
