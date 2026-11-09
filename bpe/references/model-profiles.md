@@ -117,6 +117,19 @@ With this file at `~/.claude/bpe.local.md` and no per-project file:
 Dated recommendations, not schema.
 This section is re-evaluated when a model generation ships or a recommendation proves out (or fails) in use; a stale date here is a defect, and the `.claude/bpe.local.md.example` file at the repo root mirrors whatever this section currently says.
 
+### 2026-11-09 (Opus 5.5 unpinned, Fable narrowed to spec-shaping and the final sweep)
+
+| Role | Recommendation | Why |
+|---|---|---|
+| brainstorm, plan, retrofit | `claude-fable-5-1` | Spec-shaping lives in ambiguity, where Fable keeps the edge |
+| review, apply-review | `opus` | Opus 5.5 is reliable again for decision review |
+| validator agent | `opus` | Per-batch adversarial review, and Opus 5.5 now holds the judgment it wants |
+| step-executor, execute-plan, cheap-research, and the mechanical skills | frontmatter defaults (`sonnet`) | Bounded execution against a decision-complete plan and fast lookups; the shipped sonnet tiers hold |
+| final-sweep seat (0.7.3, #52) | `claude-fable-5-1` | Where Fable returns in validation: one end-of-run sweep, not per-step review |
+
+Why the unpin: Opus 5.5 proved reliable on bounded work, retiring the 2026-08-08 rollback to pinned Opus 4.8 (#37, #42).
+The direction now is to use Fable less and later: spec-shaping and the end-of-run sweep, not per-step execution or validation.
+
 ### 2026-08-08 (Opus 4.8 executor, Opus 5 rolled back)
 
 | Role | Recommendation | Why |

@@ -7,11 +7,11 @@ Mirrors plan.md. Check off each top-level step as it finalizes; sub-steps track 
 - [x] Step 1: Swap the claude-opus-4-8 frontmatter pins for the opus alias
   - [x] Change `model: claude-opus-4-8` to `model: opus` in the five skills + validator.md
   - [x] Verify: no frontmatter pin remains; all six frontmatters parse
-- [ ] Step 2: Add the dated Recommended Tier Map entry and align the doc copies
-  - [ ] Add `### 2026-11-09` entry to model-profiles.md (keep 2026-08-08 as history)
-  - [ ] Reconcile `.claude/bpe.local.md.example` (drop opus-4-8 pins, refresh date/comment)
-  - [ ] Reconcile bpe/README.md tier reference
-  - [ ] Verify: grep for claude-opus-4-8 hits only the dated history entry; .example parses
+- [x] Step 2: Add the dated Recommended Tier Map entry and align the doc copies
+  - [x] Add `### 2026-11-09` entry to model-profiles.md (keep 2026-08-08 as history)
+  - [x] Reconcile `.claude/bpe.local.md.example` (drop opus-4-8 pins, refresh date/comment)
+  - [x] Reconcile bpe/README.md tier reference
+  - [x] Verify: grep for claude-opus-4-8 hits only the dated history entry; .example parses
 
 ## Section 2: Subagent MCP access (#44, #49)
 
