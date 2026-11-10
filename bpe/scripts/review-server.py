@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import hashlib
+import html
 import json
 import os
 import shutil
@@ -14,6 +15,7 @@ import sys
 import threading
 import webbrowser
 from datetime import datetime
+from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from typing import NoReturn
@@ -204,8 +206,16 @@ def make_handler(
     shutdown_event: threading.Event,
 ) -> type[BaseHTTPRequestHandler]:
     class Handler(BaseHTTPRequestHandler):
-        def log_message(self, *_: object) -> None:
-            return  # quiet
+        def log_request(self, code: int | str = "-", size: int | str = "-") -> None:
+            """Log POST requests and any non-200 response to stderr, stay quiet on 200 GETs.
+
+            Args:
+                code: Response status code passed by send_response; an HTTPStatus or int.
+                size: Response size in bytes, forwarded to the default formatter.
+            """
+            status = int(code) if isinstance(code, HTTPStatus) else code
+            if self.command == "POST" or status != 200:
+                super().log_request(code, size)
 
         def do_GET(self) -> None:  # noqa: N802 (BaseHTTPRequestHandler API)
             if self.path in ("/", "/index.html"):
@@ -241,18 +251,22 @@ def make_handler(
                 return
             payload["artifact_path"] = source_artifact
             payload["saved_at"] = datetime.now().isoformat()
-            feedback_path.write_text(json.dumps(payload, indent=2))
+            body = json.dumps(payload, indent=2)
+            feedback_path.write_text(body)
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.end_headers()
-            self.wfile.write(
-                b"<!doctype html><meta charset=utf-8>"
-                b"<title>Saved</title>"
-                b"<style>body{font-family:system-ui;max-width:40rem;margin:4rem auto;padding:0 1rem;line-height:1.5}</style>"
-                b"<h1>Saved</h1>"
-                b"<p>Feedback recorded. You can close this tab.</p>"
-                b"<p>Back in Claude Code, run <code>/bpe:apply-review</code> to load and apply your feedback.</p>"
+            page = (
+                "<!doctype html><meta charset=utf-8>"
+                "<title>Saved</title>"
+                "<style>body{font-family:system-ui;max-width:40rem;margin:4rem auto;padding:0 1rem;line-height:1.5}</style>"
+                "<h1>Saved</h1>"
+                "<p>Feedback recorded. You can close this tab.</p>"
+                "<p>Back in Claude Code, run <code>/bpe:apply-review</code> to load and apply your feedback.</p>"
+                f"<p>Written to <code>{html.escape(str(feedback_path))}</code></p>"
+                f"<pre>{html.escape(body)}</pre>"
             )
+            self.wfile.write(page.encode("utf-8"))
             threading.Timer(SHUTDOWN_DELAY_SECONDS, shutdown_event.set).start()
 
     return Handler
@@ -272,7 +286,7 @@ HEAD_ASSETS = """
 def load_stylesheet() -> str:
     """Return review.css wrapped in a <style> tag, or empty if missing.
 
-    Inlining the stylesheet keeps the served page fully self-contained — the
+    Inlining the stylesheet keeps the served page fully self-contained: the
     browser receives one HTML document with all design rules embedded, no
     external CSS request. review.css is the authoritative design layer; it
     loads after Tailwind so its semantic classes win the cascade.
@@ -588,7 +602,7 @@ def inject_save_script(html_text: str, artifact_path: str, feedback_name: str) -
         return;
       }}
       btn.disabled = true;
-      btn.textContent = 'Saving…';
+      btn.textContent = 'Saving...';
       fetch('/save', {{
         method: 'POST',
         headers: {{ 'Content-Type': 'application/json' }},
@@ -724,6 +738,11 @@ def bind_server(bind_addr: str, start_port: int = 9000, attempts: int = 50) -> H
 
 def main() -> None:
     html_path, feedback_path, source_artifact, bind_override = parse_argv(sys.argv[1:])
+
+    # Resolve the feedback path once to an absolute path so the write, the Saved
+    # page, the save-script injection, and the startup line all report the same
+    # location even when the server is launched with a relative path.
+    feedback_path = feedback_path.resolve()
 
     if not html_path.exists():
         print(f"HTML file not found: {html_path}", file=sys.stderr)

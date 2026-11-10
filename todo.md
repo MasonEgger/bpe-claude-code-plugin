@@ -60,10 +60,10 @@ Mirrors plan.md. Check off each top-level step as it finalizes; sub-steps track 
   - [x] Copy JSON (execCommand + secure-context clipboard) and Download JSON (Blob) injected, not comment-gated
   - [x] save-failure catch auto-triggers the download
   - [x] Verify: HTML contains relative /save, both controls, templated artifact_path; payload matches validate_feedback
-- [ ] Step 5: Saved page shows the JSON and the server logs POSTs
-  - [ ] Saved page renders exact JSON + feedback path, keeps the shutdown timer
-  - [ ] log_message logs POSTs and non-200s, quiet on routine 200 GETs
-  - [ ] Verify: POST response contains the written bytes + path; POST logged; no bare-return log_message
+- [x] Step 5: Saved page shows the JSON and the server logs POSTs
+  - [x] Saved page renders exact JSON + feedback path, keeps the shutdown timer
+  - [x] log_message logs POSTs and non-200s, quiet on routine 200 GETs
+  - [x] Verify: POST response contains the written bytes + path; POST logged; no bare-return log_message
 
 ## Section 6: Version bump and docs (#50 tail)
 
