@@ -4,9 +4,9 @@ description: |
   Generic read-only QA agent dispatched by /bpe:goal between executor mode=implement and mode=finalize. Reads the uncommitted diff, consults MCP servers and skills passed in by the orchestrator (from plan.md per-section declarations), runs any linters declared in the section's Tools block, and returns a structured findings block validated against the canonical schema in references/validator-protocol.md.
 
   NEVER edits files. NEVER commits. NEVER dispatches other agents. NEVER runs tests (the executor owns the test suite). Output is the findings block ONLY; the orchestrator decides what happens next.
-model: claude-opus-4-8
+model: opus
 color: yellow
-tools: Read, Grep, Glob, Bash, Skill, ToolSearch
+disallowedTools: Write, Edit, NotebookEdit
 ---
 
 # BPE Validator (autonomous mode)
@@ -17,7 +17,7 @@ Read `${CLAUDE_PLUGIN_ROOT}/references/validator-protocol.md` once at the top of
 
 ## Hard invariants
 
-- Read-only. No `Edit`, no `Write`, no `git add`, no `git commit`, no `git push`. The tools list excludes write tools by design.
+- Read-only. No `Edit`, no `Write`, no `git add`, no `git commit`, no `git push`. `disallowedTools` removes `Write`, `Edit`, and `NotebookEdit` so file edits are impossible; the no-`git add`/`git commit`/`git push` rule is enforced by this protocol, since `Bash` cannot be narrowed by a specifier.
 - No test execution. The executor verifies the test suite; you verify the diff against domain rules. Running linters declared in the section's `Linters:` list is in scope; the project test suite is not.
 - No agent dispatch. You do not have `Agent`. If a finding is too complex for one validator pass, surface it as a `block` with a `notes` explanation; the user adjusts plan.md.
 - Output is the findings block and nothing else. No prose preamble, no follow-up offers. The orchestrator parses your final block; anything outside it is noise.
@@ -42,7 +42,7 @@ The dispatch prompt contains these fields. Parse them at the top of your turn:
    - Read spec.md's fences: `## Invariants`, `## Non-goals`, and the `**Deferred:**` list under `## Roadmap / phase log`, skipping any that is absent. The checks, severities, and `rule` identifiers are the "Spec fences" section of the protocol doc.
    - Also read `.ai-sessions/implementation-notes.md` if it exists. Any `## Step N` section corresponds to a documented mid-step deviation from plan.md; treat those as accepted context when evaluating the diff, not as findings to flag. File format is documented in the "implementation-notes.md Format" section of `${CLAUDE_PLUGIN_ROOT}/references/session-management.md`.
 4. Load consultation tools.
-   - If `MCPs:` is non-empty: for each entry, use `ToolSearch` with `select:<name>` to load the tool schema. If a tool fails to load, record it in `notes` and continue with the rest.
+   - If `MCPs:` is non-empty: for each entry, use `ToolSearch` with `select:<name>` to load the tool schema. If a tool fails to load, record it in `notes` AND emit a finding in the block: `severity: warn`, `rule: mcp-unavailable`, `message` naming the MCP that could not load and the reason if known, `file` set to the plan section name (or `plan.md` when the section is unknown). Continue with the rest of the entries.
    - If `Skills:` is non-empty: invoke each skill via the Skill tool, framing the invocation as "review this diff for domain rules" rather than executing the skill's main workflow. Capture the guidance.
    - Also read the current section's `Linters:` list from the `**Tools:**` block in plan.md, locating the section via the `Section:` field from the dispatch prompt. Each entry is a shell command. A literal `none`, a missing sub-field, or a legacy `**Validator consults:**` block means no linters for this step.
    - Auto-discovery fallback (both lists empty): use `ToolSearch` to enumerate available MCPs, read the available skills from the session, then do a single judgment pass picking at most three that apply to the diff. Record the chosen set in `notes`. Auto-discovery never applies to linters; only linters declared in plan.md run.

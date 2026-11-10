@@ -229,7 +229,9 @@ Unlike session summaries, handoffs are **not** auto-read by `/bpe:execute-plan` 
 
 ## Plan Archives (accomplishment.md)
 
-`/bpe:plan --archive` retires a finished or superseded plan into `.ai-sessions/<slug>/` before generating a fresh one.
+`/bpe:plan --archive` retires a finished or superseded plan into `.ai-sessions/<slug>/`.
+`--archive` alone archives and then stops: it preserves the plan without generating a fresh one, and `/bpe:plan` writes a new plan on a later run when you are ready.
+`--archive --regen` archives first and then regenerates in the same run.
 This section is the canonical definition of the archive layout and the accomplishment.md format; the plan skill's Archive routine conforms to it.
 
 ### Archive Layout

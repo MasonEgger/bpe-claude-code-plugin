@@ -573,12 +573,17 @@ Two concerns, both owned by init:
 1. **Model profile setup.** Walk the user through the tier map (AskUserQuestion, one question per role group): spec-shaping skills, validator, step-executor/execute-plan, cheap-research. Offer the current Recommended Tier Map from references/model-profiles.md as the default answers, with the frontmatter defaults and full-alias setups as alternatives. Ask scope (user-global ~/.claude/bpe.local.md vs per-project .claude/bpe.local.md) and whether to define a second profile (work). Write the file; never commit it; confirm .gitignore covers .claude/*.local.md when writing per-project.
 2. **Repo pre-flight setup.** Everything /bpe:goal refuses on becomes something init fixes with consent: gitignore entries for commit-msg.md and goal.md, .ai-sessions/ creation, and a verification-command probe (manifest autodetect, else prompt) recorded to spec.md's Available tooling section when a spec exists.
 
-### Design decisions (proposed, confirm at review)
+### Design decisions (confirmed 2026-11-03)
 
-- Decision: name is `/bpe:init` despite the built-in /init; the namespace disambiguates, and the concept (initialize this context for BPE) matches user expectation. (confirm at review)
-- Decision: init reads the Recommended Tier Map section at runtime rather than hardcoding model IDs, so the skill never goes stale when the map updates. (confirm at review)
-- Decision: init is re-runnable: it shows current resolved state (existing profile file, existing gitignore entries) and edits rather than overwrites; an existing profile is never clobbered without showing a diff first. (confirm at review)
-- Decision: init does NOT touch skill/agent frontmatter defaults; those remain the shipped tiers, and profiles remain the only per-user override layer (Goal 11 unchanged). (confirm at review)
+- Decision: name is `/bpe:init` despite the built-in /init; the namespace disambiguates, and the concept (initialize this context for BPE) matches user expectation.
+- Decision: init reads the Recommended Tier Map at runtime rather than hardcoding model IDs, so the skill never goes stale when the map updates.
+  Refinement: the map gains a machine-readable fenced YAML profile block under its dated heading, and init reads that block, not the prose table.
+  The repo-root `.claude/bpe.local.md.example` is generated from the same block (or retired), because the two hand-synced copies already drifted (the example cites 2026-07-26; the map is dated 2026-08-08).
+  Init always offers an alias-only option for environments that cannot pin frontier IDs.
+- Decision: init is re-runnable: it shows current resolved state (existing profile file, existing gitignore entries) and edits rather than overwrites; an existing profile is never clobbered without showing a diff first.
+  Addition: on a re-run, init lists where the user's profile differs from the current recommended map, so init doubles as the "update my models" tool.
+- Decision: init does NOT touch skill/agent frontmatter defaults; those remain the shipped tiers, and profiles remain the only per-user override layer (Goal 11 unchanged).
+  Frontmatter lives in the installed plugin cache, so an edit there would be wiped on the next plugin update.
 
 ### Verification
 
@@ -587,3 +592,63 @@ skill-creator triggering eval (should fire on "set up bpe", "bpe init", "configu
 ### Sequencing
 
 Layers on the 0.6.x line after the fable-alignment package or alongside it; touches no autonomous-loop contracts.
+
+## 0.7.2 Fixes (2026-11-03, requested)
+
+The first of four patch releases triaged from the open issues on 2026-11-03.
+The later three are loop efficiency (0.7.3: #51 batch mode, #52 final sweep, #53 checkpoint and report budget), setup (0.7.4: #28 `/bpe:init`, #48 issue format), and the review renderer (0.7.5: #17).
+Versions keep bumping the patch number; Mason calls the 0.8.0 bump separately, as a version-only change.
+
+### Goal
+
+Fix the confirmed bugs that lose work or silently disable declared tooling, and drop the Opus 4.8 pin.
+Five work items, each traceable to an issue.
+
+1. **Use the `opus` alias everywhere (#50).**
+   Replace every `claude-opus-4-8` pin with `opus` in skill and agent frontmatter, `references/model-profiles.md`, `bpe/README.md`, and `.claude/bpe.local.md.example`.
+   Add a new dated Recommended Tier Map entry: Fable for brainstorm, plan, retrofit; `opus` for review, apply-review, validator; `sonnet` for step-executor, execute-plan, cheap-research, and the mechanical skills.
+   Shipped frontmatter stays alias-only and portable; Fable reaches a seat only through a profile.
+2. **Subagent MCP access (#44, #49).**
+   Remove the `tools:` allowlists from `agents/validator.md` and `agents/step-executor.md`, so both inherit the session's MCP tools.
+   The validator gets `disallowedTools: Write, Edit, NotebookEdit`; its no-git-writes rule stays protocol-enforced, since `Bash` cannot be narrowed by specifier.
+   A declared MCP that fails to load becomes a `warn` finding (`rule: mcp-unavailable`) instead of a `notes` line, so the orchestrator sees it.
+   `/bpe:goal` pre-flight warns (does not refuse) when a plan section's Tools block names an MCP absent from the session.
+   Correct `plan/SKILL.md`'s claim that the executor consults MCPs, which is only true after this change.
+3. **Recovery from a failing suite at finalize (#43).**
+   When `mode=finalize` returns `Failure:` with failing test output and the fix-loop cap is not exhausted, the orchestrator synthesizes a findings block with a single `block` finding (`rule: finalize-test-failure`, the failure text as the message, the failing file when known), validates it with `scripts/validate-findings.py`, dispatches `mode=fix`, and continues through validation and finalize.
+   The synthesized-finding shape is documented in `references/validator-protocol.md`.
+4. **`/bpe:plan --archive` archives only (#38).**
+   `--archive` archives and stops.
+   `--archive --regen` archives, then regenerates.
+   `--regen` is unchanged.
+   The refusal message and `references/session-management.md` describe all three.
+5. **Review server reliability (#33, #36, #47).** All in `scripts/review-server.py`.
+   - PID and URL files are keyed by a short hash of the resolved artifact path; the skill computes the same name. Restarting a review of the same artifact replaces its own server; a different artifact is never touched.
+   - A dying server unlinks its PID and URL files only when they still hold its own PID. A server that kills a predecessor prints a line saying so.
+   - Port selection starts at 9000 and walks downward on real bind attempts against the chosen address, giving up with a clear error after a bounded number of tries. No random port fallback.
+   - The tailnet IPv4 is the mandatory bind address. When it cannot be resolved, the server exits non-zero naming the reason (`tailscale` missing, daemon down, logged out) and writes no URL file. `--bind` stays as the explicit override. Never `0.0.0.0`.
+   - The injected save script posts to the relative `/save`.
+   - Two controls are injected next to Save: "Copy JSON" (`document.execCommand('copy')` on an offscreen textarea, with `navigator.clipboard` only when `window.isSecureContext`) and "Download JSON" (Blob). Both build the payload from `collectFeedback()` plus `artifact_path` and `saved_at`, matching what `/save` writes, and neither is gated on missing comments. A failed save triggers the download automatically.
+   - The Saved page renders the exact JSON written and the resolved feedback path, keeping the five-second shutdown.
+   - The server logs POSTs and non-200 responses.
+
+### Design decisions (confirmed 2026-11-03)
+
+- Decision: inherit-plus-deny for subagent tools rather than allowlists. MCP tool names are per-project, so a plugin cannot enumerate them, and the Claude Code subagent docs confirm an omitted `tools:` inherits the session's MCP tools.
+- Decision: a finalize-stage red re-enters the fix loop through a synthesized finding, not a validator re-dispatch; the validator never runs tests.
+- Decision: tailnet bind is mandatory (#47 wins over #36's loopback suggestion).
+- Decision: both copy and download controls ship, since the clipboard API is unavailable on the plain-http tailnet origin.
+- Decision: #47 item 3 is satisfied by the copy control; #36's `--from <path>` ask is already met by `/bpe:apply-review`'s path argument.
+
+### Verification
+
+- `grep -r claude-opus-4-8 bpe .claude` matches only historical mentions inside dated Tier Map entries.
+- A validator dispatch with a declared MCP loads it, and one with a bogus MCP name returns a `warn` finding that passes `validate-findings.py`.
+- A synthesized `finalize-test-failure` block passes `validate-findings.py`.
+- Review server: two concurrent runs on different artifacts coexist on 9000 and 8999; a restart on the same artifact replaces only its own server; with Tailscale stopped the server exits non-zero naming Tailscale and writes no URL file; Copy JSON on the tailnet origin yields a payload `validate_feedback` accepts without saving; the Saved page contains the same bytes as the feedback file.
+- `plugin.json` version is 0.7.2.
+
+### Non-goals for this package
+
+- No batch mode, final sweep, or checkpoint work (0.7.3).
+- No change to the review page's generation path (0.7.5, #17).

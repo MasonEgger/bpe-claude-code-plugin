@@ -1,9 +1,9 @@
 ---
 name: plan
 description: Transform spec.md into an implementation roadmap (plan.md + todo.md) of TDD Feature steps and non-TDD Task steps
-model: claude-opus-4-8
+model: opus
 disable-model-invocation: true
-argument-hint: "[--archive | --regen] [--no-discover]"
+argument-hint: "[--archive [--regen] | --regen] [--no-discover]"
 ---
 
 # Plan Command
@@ -16,11 +16,12 @@ Run this check before anything else in this skill, including Tool discovery.
 2. `plan.md` absent: proceed with the rest of this skill and generate a fresh plan. `--archive` and `--regen` are no-ops in this case.
 3. `plan.md` present and neither `--archive` nor `--regen` in $ARGUMENTS: refuse and stop. Report in this shape:
 
-   > plan.md exists (last modified <date>, N/M items checked). Use `--archive` to preserve it in .ai-sessions before regenerating, or `--regen` to discard and regenerate.
+   > plan.md exists (last modified <date>, N/M items checked). Use `--archive` to preserve it in .ai-sessions and stop, `--archive --regen` to preserve it and then regenerate, or `--regen` to discard and regenerate.
 
    Fill `<date>` from the file's modification time (`date -r plan.md +%Y-%m-%d`). Fill `N/M` from todo.md's top-level checkbox counts: N is the checked count, M the total. If todo.md is missing, write "no todo.md" in place of "N/M items checked".
-4. `plan.md` present and `--archive` in $ARGUMENTS: run the Archive routine below, then proceed to generate a fresh plan.
-5. `plan.md` present and `--regen` in $ARGUMENTS: delete `plan.md` and `todo.md` at the repo root (`rm -f plan.md todo.md`), then proceed to generate a fresh plan.
+4. `plan.md` present and `--archive` in $ARGUMENTS WITHOUT `--regen`: run the Archive routine below, then STOP. Report where the archive landed; do not generate a fresh plan. `/bpe:plan` generates a fresh plan on a later run when the user is ready.
+5. `plan.md` present and BOTH `--archive` and `--regen` in $ARGUMENTS: run the Archive routine below, then proceed to generate a fresh plan.
+6. `plan.md` present and `--regen` in $ARGUMENTS without `--archive`: delete `plan.md` and `todo.md` at the repo root (`rm -f plan.md todo.md`), then proceed to generate a fresh plan.
 
 ### Archive routine
 
@@ -33,7 +34,7 @@ The archive layout and the accomplishment.md format are canonically documented i
 4. `mv todo.md .ai-sessions/<slug>/todo.md`
 5. Write `.ai-sessions/<slug>/accomplishment.md` following the accomplishment.md template in session-management.md. Populate it from the just-moved plan.md and todo.md plus `git log` commit subjects; the template section documents each field.
 6. Record the archive in spec.md. Under `**Shipped:**` in `## Roadmap / phase log`, append `- <slug>: <one-line summary> (.ai-sessions/<slug>/)` as the last line, taking the summary from the accomplishment.md title and its Convergence line. If the list still reads `- none yet`, replace that line instead of appending. If spec.md has no `## Roadmap / phase log` section (a spec written before the section existed), skip this step and tell the user; do not add the section here.
-7. Proceed to generate a fresh plan (the rest of this skill).
+7. Proceed to generate a fresh plan (the rest of this skill) ONLY when `--regen` is also in $ARGUMENTS. Otherwise stop here: tell the user the archive path and that `/bpe:plan` will generate a fresh plan when they are ready.
 
 Draft a detailed, step-by-step blueprint for building this project. Then, once you have a solid plan, break it down into small, iterative chunks that build on each other. Look at these chunks and then go another round to break it into small steps. Review the results and make sure that the steps are small enough to be implemented safely with strong testing, but big enough to move the project forward. Iterate until you feel that the steps are right sized for this project.
 
@@ -237,7 +238,7 @@ A `no relevant results` return caches nothing: leave spec.md untouched and tell 
 
 Read spec.md's `## Available tooling` section (Pass 1 of Tool discovery above) before drafting plan.md.
 For each plan section (top-level `##` heading in plan.md), decide which subset of the project's available skills, MCPs, and linters applies to that section's steps.
-Both consumers draw from the same block: the executor invokes the Skills and consults the MCPs while doing the work; the `bpe:validator` consults the Skills and MCPs for guidance AND runs the Linters as adversarial review.
+Both consumers draw from the same block: the executor, which inherits the session's MCP tools, invokes the Skills and consults the MCPs while doing the work; the `bpe:validator` consults the Skills and MCPs for guidance AND runs the Linters as adversarial review.
 Record the decision immediately under the section heading using this exact format:
 
 ```markdown

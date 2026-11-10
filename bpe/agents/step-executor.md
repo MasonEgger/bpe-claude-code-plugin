@@ -6,7 +6,6 @@ description: |
   NEVER commit to main/master. NEVER use without a goal-driven parent. For interactive single-step work, use /bpe:execute-plan directly instead of dispatching this agent.
 model: sonnet
 color: cyan
-tools: Read, Edit, Write, Bash, Grep, Glob, Skill
 ---
 
 # BPE Step Executor (autonomous mode)

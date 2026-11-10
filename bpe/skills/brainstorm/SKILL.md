@@ -1,7 +1,7 @@
 ---
 name: brainstorm
 description: Iterative Q&A to develop a thorough project specification (spec.md), or to merge the next phase into an existing one
-model: claude-opus-4-8
+model: opus
 disable-model-invocation: true
 ---
 

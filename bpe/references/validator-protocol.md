@@ -57,6 +57,23 @@ Three round trips through the fix loop. If the validator still reports `block` o
 
 `info` findings never trigger a fix loop. They land in the final commit message body: the orchestrator carries them into the finalize dispatch prompt as an `Info findings:` block (a finalize dispatch is a fresh context and cannot read earlier validator output), and the executor appends them to the commit message.
 
+## Finalize-red recovery
+
+A `mode=finalize` dispatch runs the test suite one final time before it commits.
+When that run goes red, the executor returns a `Failure:` block carrying the failing test output instead of a `Finalize-Report`.
+The orchestrator, not the validator, recovers from it; the validator never runs tests, so it cannot produce this finding on its own.
+
+The orchestrator synthesizes a findings block holding a single finding:
+
+- `severity: block`
+- `rule: finalize-test-failure`
+- `message`: the failing test output trimmed to the failing assertion and the test name.
+- `file`: the failing test file when the output names one, else the plan section name.
+
+The orchestrator builds the block, pipes it through `scripts/validate-findings.py`, dispatches `step-executor mode=fix` with it, and then continues the normal validator -> finalize path.
+The finalize red consumes one fix-loop iteration, under the same 3-iteration cap as any other `block` finding.
+Halt the loop with RESUME only when `iter == 3`, or when the finalize `Failure:` is not a test failure (a commit rejection, a push rejection, or a missing session summary); those cases halt immediately.
+
 ## Severity guidance
 
 - `block`: a correctness, security, or contract violation that the user would not want shipped. Triggers a fix loop.
@@ -119,6 +136,13 @@ Severity maps from the linter's own levels: `block` for errors, `warn` for warni
 The parsing and mapping procedure lives in `agents/validator.md` step 5 (Run declared linters).
 Linters are declared per section or per step in plan.md; see the "Tools block" section below for the declaration format.
 A linter that fails to run (not installed, config missing) is recorded in the block's `notes`, not emitted as a finding.
+
+## MCP-unavailable findings
+
+When a declared MCP cannot be loaded, the validator emits a `warn` finding with `rule: mcp-unavailable` so the orchestrator sees it in the verdict rather than only in free-text `notes`.
+The `message` names the MCP that could not load and the reason when known; `file` is the plan section name, or `plan.md` when the section is unknown.
+The validator still records the failure in `notes` and continues consulting the rest of the declared tools.
+The finding participates in the fix loop like any other `warn`: the fix is usually a `plan.md` Tools-block correction, or confirming the MCP is configured in the session.
 
 ## Auto-discovery fallback
 
