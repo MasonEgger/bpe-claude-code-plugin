@@ -181,7 +181,7 @@ Start the server in the background. Use `run_in_background: true` so the termina
 python3 ${CLAUDE_PLUGIN_ROOT}/scripts/review-server.py <html-path> <feedback-path> <source-markdown-path>
 ```
 
-If the user is on a Tailscale-up machine but explicitly wants the page reachable only locally (e.g. they're reviewing in the browser on the same box), pass `--bind 127.0.0.1`:
+To override the mandatory tailnet bind (reviewing locally on the same box, or on a machine where Tailscale is down), pass `--bind 127.0.0.1`:
 
 ```bash
 python3 ${CLAUDE_PLUGIN_ROOT}/scripts/review-server.py <html-path> <feedback-path> <source-markdown-path> --bind 127.0.0.1
@@ -190,7 +190,8 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/review-server.py <html-path> <feedback-pat
 The script:
 
 - Kills only a prior `/bpe:review` server for the *same artifact* via that artifact's PID file at `/tmp/bpe-review-<key>.pid`, where `<key>` is the first 8 hex of the sha256 of the absolute source-markdown path. A review of a different file keeps its own key and is left untouched.
-- Binds to the local Tailscale IPv4 if `tailscale` is installed and the daemon is up, unless `--bind` overrides it; otherwise falls back to `127.0.0.1`. Picks a random free port either way. Tailscale binding lets the user review on a phone or second laptop without extra configuration.
+- Binds to the local Tailscale IPv4 by default. The tailnet bind is mandatory: when the address cannot be resolved (`tailscale` not on PATH, the daemon down, or logged out) the server exits non-zero and names the reason on stderr instead of falling back to loopback. Pass `--bind <address>` to override and bind elsewhere (e.g. `--bind 127.0.0.1`). Tailscale binding lets the user review on a phone or second laptop without extra configuration.
+- Serves on a predictable port: it tries 9000 first and counts down (8999, 8998, ...) to the first free port, so a second concurrent review lands on the next port down rather than a random one.
 - Writes the URL to `/tmp/bpe-review-<key>.url` (same `<key>` as the PID file) for Step 4 to read, then removes the file on clean shutdown.
 - Inlines `review.css` (the authoritative design layer), Tailwind, and Mermaid into the page `<head>`.
 - Injects the save, scroll-spy, progress-bar, and decision-sync JavaScript into the HTML.

@@ -51,10 +51,10 @@ Mirrors plan.md. Check off each top-level step as it finalizes; sub-steps track 
   - [x] finally unlinks only when the PID file holds this process's PID
   - [x] kill_existing_server prints when it signals a predecessor
   - [x] Verify: module loads; getpid guard present; concurrent-coexistence check passes
-- [ ] Step 3: Deterministic port from 9000 and a mandatory tailnet bind
-  - [ ] pick_bind_address: tailnet-or-exit (no loopback fallback, never 0.0.0.0); `--bind` override kept
-  - [ ] port loop: 9000 countdown on real binds, bounded, loud give-up
-  - [ ] Verify: ports 9000/8999 on two runs; --bind loopback works; tailnet-down exits non-zero, no URL file
+- [x] Step 3: Deterministic port from 9000 and a mandatory tailnet bind
+  - [x] pick_bind_address: tailnet-or-exit (no loopback fallback, never 0.0.0.0); `--bind` override kept
+  - [x] port loop: 9000 countdown on real binds, bounded, loud give-up
+  - [x] Verify: ports 9000/8999 on two runs; --bind loopback works; tailnet-down exits non-zero, no URL file
 - [ ] Step 4: Relative /save and the Copy/Download controls
   - [ ] fetch target becomes relative `/save`
   - [ ] Copy JSON (execCommand + secure-context clipboard) and Download JSON (Blob) injected, not comment-gated

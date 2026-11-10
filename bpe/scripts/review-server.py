@@ -16,6 +16,7 @@ import webbrowser
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
+from typing import NoReturn
 
 SHUTDOWN_DELAY_SECONDS = 5  # give the "Saved" page time to render before quitting
 TAILSCALE_PROBE_TIMEOUT_SECONDS = 2
@@ -24,16 +25,42 @@ STYLESHEET = SCRIPT_DIR / "review.css"
 VALID_DECISIONS = frozenset({"ship", "update", "redirect", "reject", "unset"})
 
 
-def pick_bind_address() -> str:
-    """Return the local Tailscale IPv4 if the daemon is up, otherwise localhost.
+def fail_bind(reason: str) -> NoReturn:
+    """Print a tailnet-bind failure to stderr and exit non-zero.
 
-    Reviewing on a phone or another laptop is the common case — when Tailscale
-    is active, bind to the tailnet IP so other devices on the tailnet can reach
-    the review page directly. Falls back silently to 127.0.0.1 if Tailscale is
-    not installed, the daemon is down, or the device is logged out.
+    Args:
+        reason: The specific cause to name, e.g. "tailscale is not on PATH".
+
+    Raises:
+        SystemExit: Always, with a non-zero status.
+    """
+    print(f"Cannot resolve the tailnet IPv4: {reason}.", file=sys.stderr)
+    print(
+        "Pass --bind <address> to bind somewhere else "
+        "(e.g. --bind 127.0.0.1 to review locally).",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
+
+def pick_bind_address() -> str:
+    """Return the local Tailscale IPv4, or exit non-zero when it cannot resolve.
+
+    Reviewing on a phone or another laptop is the common case, so the server
+    binds to the tailnet IPv4 and never falls back to loopback or 0.0.0.0 on its
+    own. When the tailnet address cannot be resolved the process exits non-zero
+    with the specific reason on stderr: tailscale is not on PATH, the probe timed
+    out or the daemon is down, or the device is logged out. Pass --bind <address>
+    before this function runs to bind somewhere else, 127.0.0.1 included.
+
+    Returns:
+        The tailnet IPv4 address as a string.
+
+    Raises:
+        SystemExit: Non-zero when the tailnet IPv4 cannot be resolved.
     """
     if shutil.which("tailscale") is None:
-        return "127.0.0.1"
+        fail_bind("tailscale is not on PATH")
     try:
         result = subprocess.run(
             ["tailscale", "ip", "-4"],
@@ -42,14 +69,14 @@ def pick_bind_address() -> str:
             timeout=TAILSCALE_PROBE_TIMEOUT_SECONDS,
         )
     except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
-        return "127.0.0.1"
+        fail_bind("the tailscale probe timed out or the daemon is down")
     if result.returncode != 0:
-        return "127.0.0.1"
+        fail_bind("the tailscale daemon is down (tailscale ip -4 exited non-zero)")
     for line in result.stdout.splitlines():
         ip = line.strip()
         if ip:
             return ip
-    return "127.0.0.1"
+    fail_bind("tailscale returned no IPv4 (logged out?)")
 
 
 def state_paths(artifact: Path) -> tuple[Path, Path]:
@@ -568,6 +595,39 @@ def parse_argv(argv: list[str]) -> tuple[Path, Path, str, str | None]:
     return Path(positionals[0]), Path(positionals[1]), positionals[2], bind_override
 
 
+def bind_server(bind_addr: str, start_port: int = 9000, attempts: int = 50) -> HTTPServer:
+    """Bind an HTTPServer to the first free port counting down from start_port.
+
+    Tries start_port first and decrements on each OSError (a port already in
+    use), so the review URL is predictable instead of a random ephemeral port.
+    The real HTTPServer bind is the free-port test, so the returned port is the
+    one the server actually serves on.
+
+    Args:
+        bind_addr: The address to bind, e.g. a tailnet IPv4 or 127.0.0.1.
+        start_port: The highest port to try; the count-down starts here.
+        attempts: How many consecutive ports to try before giving up.
+
+    Returns:
+        An HTTPServer bound to the first free port in the range.
+
+    Raises:
+        SystemExit: Non-zero when no port in the range is free.
+    """
+    for port in range(start_port, start_port - attempts, -1):
+        try:
+            return HTTPServer((bind_addr, port), BaseHTTPRequestHandler)
+        except OSError:
+            continue
+    lowest_port = start_port - attempts + 1
+    print(
+        f"No free port for the review server on {bind_addr} in range "
+        f"{lowest_port}-{start_port} ({attempts} attempts).",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
+
 def main() -> None:
     html_path, feedback_path, source_artifact, bind_override = parse_argv(sys.argv[1:])
 
@@ -584,7 +644,7 @@ def main() -> None:
     shutdown_event = threading.Event()
 
     bind_addr = bind_override if bind_override is not None else pick_bind_address()
-    server = HTTPServer((bind_addr, 0), BaseHTTPRequestHandler)
+    server = bind_server(bind_addr)
     port = server.server_address[1]
     save_url = f"http://{bind_addr}:{port}/save"
     html_text = inject_head_assets(html_text)
@@ -602,7 +662,7 @@ def main() -> None:
     print(f"BPE review server: {url}", flush=True)
     if bind_addr != "127.0.0.1":
         print(
-            f"  (bound to {bind_addr} — open this URL on whichever device you want to review on)",
+            f"  (bound to {bind_addr}: open this URL on whichever device you want to review on)",
             flush=True,
         )
     print(f"Reviewing: {source_artifact}", flush=True)
