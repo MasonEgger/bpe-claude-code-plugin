@@ -67,6 +67,6 @@ Mirrors plan.md. Check off each top-level step as it finalizes; sub-steps track 
 
 ## Section 6: Version bump and docs (#50 tail)
 
-- [ ] Step 1: Bump the plugin version to 0.7.2
-  - [ ] plugin.json version -> 0.7.2
-  - [ ] Verify: manifest version reads 0.7.2
+- [x] Step 1: Bump the plugin version to 0.7.2
+  - [x] plugin.json version -> 0.7.2
+  - [x] Verify: manifest version reads 0.7.2
