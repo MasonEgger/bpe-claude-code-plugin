@@ -47,10 +47,10 @@ Mirrors plan.md. Check off each top-level step as it finalizes; sub-steps track 
   - [x] review-server.py: per-artifact sha256-keyed PID/URL paths threaded through all call sites
   - [x] review/SKILL.md Step 4: document the matching key computation
   - [x] Verify: module loads; key deterministic + artifact-specific; sha256 in both files
-- [ ] Step 2: Unlink only self-owned files and announce a kill
-  - [ ] finally unlinks only when the PID file holds this process's PID
-  - [ ] kill_existing_server prints when it signals a predecessor
-  - [ ] Verify: module loads; getpid guard present; concurrent-coexistence check passes
+- [x] Step 2: Unlink only self-owned files and announce a kill
+  - [x] finally unlinks only when the PID file holds this process's PID
+  - [x] kill_existing_server prints when it signals a predecessor
+  - [x] Verify: module loads; getpid guard present; concurrent-coexistence check passes
 - [ ] Step 3: Deterministic port from 9000 and a mandatory tailnet bind
   - [ ] pick_bind_address: tailnet-or-exit (no loopback fallback, never 0.0.0.0); `--bind` override kept
   - [ ] port loop: 9000 countdown on real binds, bounded, loud give-up

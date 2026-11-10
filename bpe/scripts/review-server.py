@@ -8,6 +8,7 @@ import hashlib
 import json
 import os
 import shutil
+import signal
 import subprocess
 import sys
 import threading
@@ -78,7 +79,10 @@ def kill_existing_server(pid_file: Path) -> None:
     Reads the PID from pid_file, sends it SIGTERM, then deletes the file so a
     stale entry never blocks a new server for the same artifact. SIGTERM
     delivery errors (a malformed file, a process that already exited, or a
-    permission failure) are swallowed; the file is removed either way.
+    permission failure) are swallowed; the file is removed either way. When a
+    signal is actually delivered, print one line to stderr naming the PID and
+    the key file it came from, so the losing session has a chance to see why
+    its page died.
 
     Args:
         pid_file: Path to the PID file for this artifact's review server.
@@ -90,6 +94,14 @@ def kill_existing_server(pid_file: Path) -> None:
         os.kill(old_pid, 15)
     except (ValueError, ProcessLookupError, PermissionError):
         pass
+    else:
+        # Only reached when SIGTERM was actually delivered, so a stale or
+        # malformed PID file stays quiet.
+        print(
+            f"bpe-review: terminating prior server pid {old_pid} for this artifact ({pid_file})",
+            file=sys.stderr,
+            flush=True,
+        )
     pid_file.unlink(missing_ok=True)
 
 
@@ -100,6 +112,29 @@ def write_pid_file(pid_file: Path) -> None:
         pid_file: Path to the PID file for this artifact's review server.
     """
     pid_file.write_text(str(os.getpid()))
+
+
+def release_state_paths(pid_file: Path, url_file: Path) -> None:
+    """Remove this artifact's PID and URL files, but only when we still own them.
+
+    A server unlinks pid_file and url_file only when pid_file still holds this
+    process's PID. A newer server for the same artifact overwrites pid_file with
+    its own PID during startup, so a late finally from a dying server must not
+    clobber the newer server's files: when the recorded PID differs, both files
+    are left in place. A missing or unreadable pid_file means ownership cannot
+    be proven, so nothing is removed.
+
+    Args:
+        pid_file: Path to the PID file for this artifact's review server.
+        url_file: Path to the URL file for this artifact's review server.
+    """
+    try:
+        owner_pid = pid_file.read_text().strip()
+    except OSError:
+        return
+    if owner_pid == str(os.getpid()):
+        pid_file.unlink(missing_ok=True)
+        url_file.unlink(missing_ok=True)
 
 
 def validate_feedback(payload: object) -> str | None:
@@ -582,12 +617,17 @@ def main() -> None:
         threading.Thread(target=lambda: webbrowser.open(url), daemon=True).start()
     threading.Thread(target=server.serve_forever, daemon=True).start()
 
+    # Translate SIGTERM (what kill_existing_server sends a predecessor, and what
+    # a plain kill sends) into the same clean shutdown a Save click triggers, so
+    # the self-owned release in the finally below runs instead of the process
+    # dying mid-flight and leaking its state files.
+    signal.signal(signal.SIGTERM, lambda _signum, _frame: shutdown_event.set())
+
     try:
         shutdown_event.wait()
     finally:
         server.shutdown()
-        pid_file.unlink(missing_ok=True)
-        url_file.unlink(missing_ok=True)
+        release_state_paths(pid_file, url_file)
     print(f"Saved feedback to {feedback_path}", flush=True)
 
 
