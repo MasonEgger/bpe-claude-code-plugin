@@ -55,11 +55,11 @@ Mirrors plan.md. Check off each top-level step as it finalizes; sub-steps track 
   - [x] pick_bind_address: tailnet-or-exit (no loopback fallback, never 0.0.0.0); `--bind` override kept
   - [x] port loop: 9000 countdown on real binds, bounded, loud give-up
   - [x] Verify: ports 9000/8999 on two runs; --bind loopback works; tailnet-down exits non-zero, no URL file
-- [ ] Step 4: Relative /save and the Copy/Download controls
-  - [ ] fetch target becomes relative `/save`
-  - [ ] Copy JSON (execCommand + secure-context clipboard) and Download JSON (Blob) injected, not comment-gated
-  - [ ] save-failure catch auto-triggers the download
-  - [ ] Verify: HTML contains relative /save, both controls, templated artifact_path; payload matches validate_feedback
+- [x] Step 4: Relative /save and the Copy/Download controls
+  - [x] fetch target becomes relative `/save`
+  - [x] Copy JSON (execCommand + secure-context clipboard) and Download JSON (Blob) injected, not comment-gated
+  - [x] save-failure catch auto-triggers the download
+  - [x] Verify: HTML contains relative /save, both controls, templated artifact_path; payload matches validate_feedback
 - [ ] Step 5: Saved page shows the JSON and the server logs POSTs
   - [ ] Saved page renders exact JSON + feedback path, keeps the shutdown timer
   - [ ] log_message logs POSTs and non-200s, quiet on routine 200 GETs

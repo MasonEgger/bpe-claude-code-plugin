@@ -423,12 +423,35 @@ def inject_runtime_helpers(html_text: str) -> str:
     return html_text + RUNTIME_HELPERS
 
 
-def inject_save_script(html_text: str, save_url: str) -> str:
-    # 'ship' is "leave it alone" and 'unset' is "no decision yet" — neither
+def inject_save_script(html_text: str, artifact_path: str, feedback_name: str) -> str:
+    """Inject the Save, Copy, and Download controls and their script before </body>.
+
+    The review page template (the #17 generation path) ships only the Save
+    button and the comment boxes; the Copy JSON and Download JSON controls are
+    added here at serve time, so any already-generated page gains them. Save
+    posts to the relative '/save' on the same origin, so the target is never
+    frozen to a stale bind address. Copy and Download both build the same
+    payload POST /save writes (collectFeedback plus artifact_path and saved_at),
+    neither is gated on the missing-comment check, and a failed Save
+    auto-downloads the feedback so a lost connection never strands the review.
+
+    Args:
+        html_text: The assembled review HTML to inject the script into.
+        artifact_path: The source-markdown path, templated into the payload as
+            artifact_path so Copy and Download match what /save records.
+        feedback_name: The feedback file's basename, used as the Download
+            filename.
+
+    Returns:
+        The review HTML with the save script injected before </body>.
+    """
+    # 'ship' is "leave it alone" and 'unset' is "no decision yet"; neither
     # gives apply-review anything to act on, so they don't need a comment.
     # update/redirect/reject all need text the consumer can act on; we block
     # Save until those have comments so /bpe:apply-review never runs on
     # directionless feedback.
+    artifact_literal = json.dumps(artifact_path)
+    feedback_literal = json.dumps(feedback_name)
     script = f"""
 <script>
 (function() {{
@@ -454,6 +477,54 @@ def inject_save_script(html_text: str, save_url: str) -> str:
       sections: sections,
       global_comment: globalEl ? globalEl.value : ''
     }};
+  }}
+
+  function recoveryPayload() {{
+    // Match what POST /save writes: collectFeedback plus the server's artifact
+    // path and an ISO timestamp computed now, so Copy and Download hand off the
+    // same bytes the server would have persisted.
+    var payload = collectFeedback();
+    payload.artifact_path = {artifact_literal};
+    payload.saved_at = new Date().toISOString();
+    return payload;
+  }}
+
+  function copyRecovery(btn) {{
+    var json = JSON.stringify(recoveryPayload(), null, 2);
+    // execCommand against an offscreen textarea works without a secure context;
+    // the clipboard API is an opportunistic second try where it is available.
+    var area = document.createElement('textarea');
+    area.value = json;
+    area.style.position = 'fixed';
+    area.style.top = '-1000px';
+    area.style.left = '-1000px';
+    document.body.appendChild(area);
+    area.select();
+    try {{
+      document.execCommand('copy');
+    }} catch (err) {{
+      // Locked-down contexts can refuse execCommand; fall through to the API.
+    }}
+    document.body.removeChild(area);
+    if (window.isSecureContext && navigator.clipboard) {{
+      navigator.clipboard.writeText(json).catch(function() {{}});
+    }}
+    var original = btn.textContent;
+    btn.textContent = 'Copied';
+    setTimeout(function() {{ btn.textContent = original; }}, 2000);
+  }}
+
+  function downloadRecovery() {{
+    var json = JSON.stringify(recoveryPayload(), null, 2);
+    var blob = new Blob([json], {{ type: 'application/json' }});
+    var objectUrl = URL.createObjectURL(blob);
+    var link = document.createElement('a');
+    link.href = objectUrl;
+    link.download = {feedback_literal};
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(objectUrl);
   }}
 
   function findMissingComments() {{
@@ -518,7 +589,7 @@ def inject_save_script(html_text: str, save_url: str) -> str:
       }}
       btn.disabled = true;
       btn.textContent = 'Saving…';
-      fetch('{save_url}', {{
+      fetch('/save', {{
         method: 'POST',
         headers: {{ 'Content-Type': 'application/json' }},
         body: JSON.stringify(collectFeedback())
@@ -535,14 +606,37 @@ def inject_save_script(html_text: str, save_url: str) -> str:
       }}).catch(function(err) {{
         btn.disabled = false;
         btn.textContent = SAVE_LABEL;
-        alert('Save failed: ' + err);
+        // A failed save must never strand the review, so hand the reviewer the
+        // same JSON as a download before telling them the save fell over.
+        downloadRecovery();
+        alert('Save failed, downloaded your feedback as a JSON file instead: ' + err);
       }});
     }});
+  }}
+
+  function bindRecoveryControls() {{
+    // Build Copy and Download as siblings of Save at serve time. They inherit
+    // Save's class so the stylesheet styles them the same, and neither runs the
+    // missing-comment gate: both exist to preserve partial work. saveBtn.className
+    // is template-set, not reviewer input, so interpolating it into the markup
+    // is safe.
+    var saveBtn = document.getElementById('bpe-save-btn');
+    if (!saveBtn) return;
+    var cls = saveBtn.className || 'review-save';
+    var markup =
+      '<button type="button" id="bpe-copy-btn" class="' + cls + '">Copy JSON</button>' +
+      '<button type="button" id="bpe-download-btn" class="' + cls + '">Download JSON</button>';
+    saveBtn.insertAdjacentHTML('afterend', markup);
+    var copyBtn = document.getElementById('bpe-copy-btn');
+    var downloadBtn = document.getElementById('bpe-download-btn');
+    copyBtn.addEventListener('click', function() {{ copyRecovery(copyBtn); }});
+    downloadBtn.addEventListener('click', function() {{ downloadRecovery(); }});
   }}
 
   function init() {{
     bindCommentClearers();
     bindSave();
+    bindRecoveryControls();
   }}
   if (document.readyState === 'loading') {{
     document.addEventListener('DOMContentLoaded', init);
@@ -646,10 +740,11 @@ def main() -> None:
     bind_addr = bind_override if bind_override is not None else pick_bind_address()
     server = bind_server(bind_addr)
     port = server.server_address[1]
-    save_url = f"http://{bind_addr}:{port}/save"
     html_text = inject_head_assets(html_text)
     html_text = inject_runtime_helpers(html_text)
-    html_with_script = inject_save_script(html_text, save_url).encode("utf-8")
+    html_with_script = inject_save_script(
+        html_text, source_artifact, feedback_path.name
+    ).encode("utf-8")
     server.RequestHandlerClass = make_handler(
         html_with_script, feedback_path, source_artifact, shutdown_event
     )
