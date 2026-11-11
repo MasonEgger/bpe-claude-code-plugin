@@ -20,10 +20,10 @@ Per-step run on the installed 0.7.2 plugin: `/bpe:goal section Phase 1`, then `/
 - [x] Step 1: Teach /bpe:plan the Batch line and the sizing rule
   - [x] `## Batch Line` in validator-protocol.md; `## Batch Boundaries` in plan/SKILL.md; review/SKILL.md plan bullet
   - [x] Verify: headings present; sizing rule present; plugin validate clean
-- [ ] Step 2: Give the executor the batch contract and warm continuation
-  - [ ] step-executor-protocol.md: one batch per invocation, continuation routing, per-step verify, report fields
-  - [ ] agents/step-executor.md: routing, implement loop, finalize slug and commit body, templates
-  - [ ] Verify: old invariant gone; Batch fields present; frontmatter parses; plugin validate clean
+- [x] Step 2: Give the executor the batch contract and warm continuation
+  - [x] step-executor-protocol.md: one batch per invocation, continuation routing, per-step verify, report fields
+  - [x] agents/step-executor.md: routing, implement loop, finalize slug and commit body, templates
+  - [x] Verify: old invariant gone; Batch fields present; frontmatter parses; plugin validate clean
 - [ ] Step 3: Drive batches from the orchestrator playbook
   - [ ] Per-batch dispatch flow, SendMessage continuation, cold fallback, per-batch cap, recovery
   - [ ] goal/SKILL.md template: one commit per batch; intro paragraph

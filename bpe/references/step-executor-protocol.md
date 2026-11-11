@@ -6,12 +6,18 @@ Parallel to `references/validator-protocol.md`, which owns the whole-loop state 
 
 ## Role
 
-`bpe:step-executor` is the worker for `/bpe:goal` autonomous runs. It does one BPE step per dispatch. The orchestrator sets a `Mode:` field in the dispatch prompt that routes the executor into one of four flows:
+`bpe:step-executor` is the worker for `/bpe:goal` autonomous runs. It does one batch of BPE steps per dispatch (a batch of one is a step).
+The dispatch prompt names the batch and its steps.
+The orchestrator sets a `Mode:` field in the dispatch prompt that routes the executor into one of four flows:
 
-- `Mode: implement`. Execute the plan's sub-steps for the next unchecked `todo.md` item. Leaves the tree dirty. No commit.
+- `Mode: implement`. Execute the plan's sub-steps for each step of the batch, in order. Leaves the tree dirty. No commit.
 - `Mode: fix`. Apply validator findings. Dirty tree in, dirty tree out. No commit.
 - `Mode: finalize`. Final test run, session summary, single commit, push. The only mode that mutates git state.
 - No `Mode:` line. Backwards-compatible bundled flow. Runs implement then finalize in one dispatch. Retained for pre-validator callers.
+
+A dispatch may be a continuation.
+The orchestrator sends `Mode: fix` or `Mode: finalize` to the agent that ran implement, through SendMessage.
+The executor routes on the `Mode:` line of the latest message it received.
 
 The three-mode split lets the orchestrator interleave `bpe:validator` between implement and finalize per the state machine in `validator-protocol.md`.
 
@@ -27,11 +33,22 @@ Each row is a hard promise between the executor and the orchestrator. Violating 
 | Pushes made | 0 | 0 | exactly 1 | exactly 1 |
 | Session summary written | no | no | yes | yes |
 | Tests must pass by end | yes | yes | yes | yes |
+| Warm continuation | n/a | yes when sent by SendMessage | yes when sent by SendMessage | n/a |
 | Report format | `Implement-Report` | `Fix-Report` | `Finalize-Report` | bundled |
+
+A continuation that cannot proceed (context exhausted) returns `Failure:` so the orchestrator falls back to a cold dispatch.
 
 Per-mode additions:
 
-- `implement`: Executes whichever template shape plan.md declares for the current step (Feature or Task); the numbered sub-steps are followed as written. Dirty tree at start aborts with `Failure:`. This signals either the prior step did not finalize, or the orchestrator broke the SEQUENTIAL DISPATCHES rule. Before reporting ready, runs the spec-fence self-check from `skills/execute-plan/SKILL.md` step 8 (Invariants `deps:` and `paths:` mechanically against `git diff HEAD --name-only`, then prose Invariants, Non-goals, and Deferred against the diff; sections absent from spec.md impose nothing). A violation is a `Failure:` naming the fence and the files, never a workaround: there is no user to ask in autonomous mode, and the fix is a spec or plan change. The validator repeats the same checks independently on sections that declare Tools (see "Spec fences" in `validator-protocol.md`).
+- `implement`: Does the batch's steps in order.
+  For each step, executes whichever template shape plan.md declares (Feature or Task); the numbered sub-steps are followed as written.
+  After each step, runs that step's Verify (or the project test command) and the spec-fence self-check, then checks off that step in todo.md, before starting the next step.
+  A red Verify or a fence violation on any step is `Failure:` naming the step.
+  Dirty tree at start aborts with `Failure:`.
+  This signals either the prior batch did not finalize, or the orchestrator broke the SEQUENTIAL DISPATCHES rule.
+  The spec-fence self-check comes from `skills/execute-plan/SKILL.md` step 8 (Invariants `deps:` and `paths:` mechanically against `git diff HEAD --name-only`, then prose Invariants, Non-goals, and Deferred against the diff; sections absent from spec.md impose nothing).
+  A violation is a `Failure:` naming the fence and the files, never a workaround: there is no user to ask in autonomous mode, and the fix is a spec or plan change.
+  The validator repeats the same checks independently on sections that declare Tools (see "Spec fences" in `validator-protocol.md`).
 - `fix`: Receives a `findings` JSON block matching the validator-protocol schema. Groups `block` and `warn` as must-fix; `info` is not fixed here (the orchestrator hands `info` to `finalize` for the commit body). A malformed findings block is a hard `Failure:`.
 - `finalize`: EXACTLY one commit per dispatch. No follow-ups, no fixups, no amends, no `--no-verify`. A pre-commit hook rejection is `Failure:`; do not retry, do not bypass. If an issue is discovered after commit, that's `Failure:` too. The orchestrator will not make a follow-up commit.
 - `bundled`: Runs `implement` then `finalize` inline. No validator handoff between them. Pre-validator legacy path.
@@ -40,9 +57,10 @@ Per-mode additions:
 
 These hold regardless of mode. Violations abort the dispatch with `Failure:`.
 
-- **One step per invocation.** Do the next unchecked `todo.md` item and nothing else. If done early, stop; the orchestrator re-dispatches.
+- **One batch per invocation; a batch of one is a step.** Do the batch's steps named in the dispatch prompt and nothing else.
+  If done early, stop; the orchestrator re-dispatches.
 - **Branch check first.** `git rev-parse --abbrev-ref HEAD` before any work. Abort on `main` or `master`.
-- **Never `/clear` or `/compact`.** Would break the parent's `/goal` session. Unnecessary anyway; every dispatch has fresh context.
+- **Never `/clear` or `/compact`.** Would break the parent's `/goal` session.
 - **No user questions.** There is no user in autonomous mode. Make the reasonable call, or abort with `Failure:` if a load-bearing decision is truly ambiguous.
 - **Always end with the mode's report block.** The `/goal` evaluator parses only the report from the parent transcript. No prose after the block.
 
@@ -55,11 +73,12 @@ The orchestrator and `/goal` evaluator parse these fields from the executor's re
 | Field | Purpose |
 |---|---|
 | `Mode:` | Routes the orchestrator's next dispatch decision. Value: `implement`. |
-| `Step:` | Which todo item this covers. `N: <description>`. |
+| `Batch:` | The batch name from the dispatch prompt, or `single`. |
+| `Step:` | Which todo items this covers. `N: <description>`, or `N-M: <batch name>` for a batch. |
 | `Files:` | Comma-separated paths modified. Cap at 120 chars; truncate with `…`. |
 | `Tests:` | Test command + exit code + short result. Exit code must be `0`. |
 | `Tree:` | `dirty (<insertions>+ <deletions>-)`. Must be dirty; implement never commits. |
-| `TodoDelta:` | The `- [x] Step N: <desc>` line that was checked off. |
+| `TodoDelta:` | One `- [x] Step N: <desc>` line per step checked off, each on its own line. |
 | `Ready:` | Fixed string `for validation`. |
 | `Blockers:` | `none` or one-line reason. |
 
@@ -83,13 +102,14 @@ The orchestrator and `/goal` evaluator parse these fields from the executor's re
 | Field | Purpose |
 |---|---|
 | `Mode:` | Value: `finalize`. |
+| `Batch:` | Same as implement. |
 | `Step:` | Same as implement. |
 | `Files:` | Committed paths, ≤120 chars. |
 | `Tests:` | Command + exit `0` + result. |
-| `Commit:` | `<short-sha> <subject ≤80 chars>`. The orchestrator VERIFIES against this SHA (never HEAD). |
+| `Commit:` | `<short-sha> <subject ≤80 chars>`. Exactly one commit per finalize dispatch, which is one per batch. The orchestrator VERIFIES against this SHA (never HEAD). |
 | `Push:` | `ok` or `failed: <reason>`. Any failure stops the loop. |
 | `Status:` | `clean`, or `dirty: <reason>` when files remain uncommitted after the commit. A dirty value is a self-reported contract violation; the orchestrator treats it as a Failure. |
-| `TodoDelta:` | The checked-off line. |
+| `TodoDelta:` | Same as implement: one line per step checked off. |
 | `Lessons:` | `added: <count>` or `none`. |
 | `Info-findings:` | `none` or the count appended to the commit body. |
 | `Blockers:` | Same as implement. |
@@ -109,7 +129,7 @@ Failure:    <one-line root cause>
 Action:     <what was tried, what's needed next>
 ```
 
-Emitted the moment any invariant fires. The orchestrator stops the per-step loop on any `Failure:` block.
+Emitted the moment any invariant fires. The orchestrator stops the loop on any `Failure:` block.
 
 ## What the /goal evaluator must see
 

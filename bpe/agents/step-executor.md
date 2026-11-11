@@ -1,7 +1,7 @@
 ---
 name: step-executor
 description: |
-  Executes ONE BPE step as the worker for /bpe:goal autonomous mode. Operates in one of three modes set by the orchestrator: `implement` (execute the plan step's sub-steps, no commit), `fix` (apply validator findings, no commit), `finalize` (session summary, single commit, push). Backwards-compatible default with no mode argument runs the original bundled flow (implement + finalize in one dispatch).
+  Executes ONE batch of BPE steps (a batch of one is a step) as the worker for /bpe:goal autonomous mode. Operates in one of three modes set by the orchestrator: `implement` (execute the plan step's sub-steps, no commit), `fix` (apply validator findings, no commit), `finalize` (session summary, single commit, push). Backwards-compatible default with no mode argument runs the original bundled flow (implement + finalize in one dispatch).
 
   NEVER commit to main/master. NEVER use without a goal-driven parent. For interactive single-step work, use /bpe:execute-plan directly instead of dispatching this agent.
 model: sonnet
@@ -25,6 +25,9 @@ Read the dispatch prompt for a `Mode:` line. Branch on its value:
 - `Mode: finalize` => Section "Mode: finalize" below.
 - No `Mode:` line => Section "Bundled (backwards compatible)" below.
 
+Route on the `Mode:` line of the latest message you received.
+A continuation message (a later `Mode: fix` or `Mode: finalize` sent to you after implement) skips re-reading `step-executor-protocol.md` and `validator-protocol.md` (the two opening paragraphs) when they are already in context.
+
 Echo the routed mode in user-facing text before pre-flight so the orchestrator transcript captures it.
 
 ## How to follow a referenced skill file
@@ -37,9 +40,13 @@ Contract: dirty tree at end, no commit, `Implement-Report` at return. Full contr
 
 Procedure:
 
-1. Clean-tree check. `git status --short`. Abort with `Failure:` if non-empty. Echo the offending output. A dirty tree at implement start means the prior step did not finalize, OR the orchestrator broke SEQUENTIAL DISPATCHES.
+1. Clean-tree check. `git status --short`. Abort with `Failure:` if non-empty. Echo the offending output. A dirty tree at implement start means the prior batch did not finalize, OR the orchestrator broke SEQUENTIAL DISPATCHES.
 2. Branch check. `git rev-parse --abbrev-ref HEAD`. Abort on `main`/`master`. Echo.
-3. Execute the sub-steps for the current todo item as written in plan.md. Read `${CLAUDE_PLUGIN_ROOT}/skills/execute-plan/SKILL.md` and follow its numbered procedure inline. Honor whichever template shape the step declares (Feature RED/GREEN/REFACTOR or Task Scope/Tooling/Do/Verify/Document), then mark the todo item. Its step 8 checks the diff against spec.md's fences (Invariants, Non-goals, Deferred); where that step says to stop and ask the user, you instead abort with `Failure:` naming the fence and the files, per the protocol. Never work around a fence.
+3. Loop over the batch's steps named in the dispatch prompt, in order.
+   For each step, execute the sub-steps as written in plan.md.
+   Read `${CLAUDE_PLUGIN_ROOT}/skills/execute-plan/SKILL.md` and follow its numbered procedure inline. Honor whichever template shape the step declares (Feature RED/GREEN/REFACTOR or Task Scope/Tooling/Do/Verify/Document), then mark the todo item.
+   Run the step's Verify and the fence check before starting the next step, and check off each step in todo.md as it lands.
+   The execute-plan skill's step 8 checks the diff against spec.md's fences (Invariants, Non-goals, Deferred); where that step says to stop and ask the user, you instead abort with `Failure:` naming the fence and the files, per the protocol. Never work around a fence.
 4. Branch re-check (defense in depth). Abort if changed to `main`/`master`.
 5. Test run. Run the project's test command. Capture the result. Abort with `Failure:` if not exit 0; do not hand a red diff to the validator.
 6. Tree snapshot. Run `git diff --shortstat` and capture for the report.
@@ -64,23 +71,26 @@ Procedure:
 
 ## Mode: finalize
 
-Contract: dirty tree at start (the work to commit), exactly ONE commit + push, clean tree at end, `Finalize-Report` at return. Full contract in `step-executor-protocol.md`. Some global pre-commit hooks reject any commit without a new `.ai-sessions/session-*.md`; this is compatible with the one-commit-per-step rule but incompatible with `--no-verify` shortcuts.
+Contract: dirty tree at start (the work to commit), exactly ONE commit + push, clean tree at end, `Finalize-Report` at return. Full contract in `step-executor-protocol.md`. Some global pre-commit hooks reject any commit without a new `.ai-sessions/session-*.md`; this is compatible with the one-commit-per-batch rule but incompatible with `--no-verify` shortcuts.
 
 Procedure:
 
 1. Branch + tree-state check. `git rev-parse --abbrev-ref HEAD` (abort on `main`/`master`) AND `git status --short` (expect non-empty; abort with `Failure:` if EMPTY since there is nothing to commit). Echo both.
 2. Final test run. Run the project's test command one final time and confirm exit 0. This is your last chance to catch issues. Abort with `Failure:` if red.
-3. Per-step session summary (MANDATORY). Read `${CLAUDE_PLUGIN_ROOT}/skills/session-summary/SKILL.md` and execute its procedure inline. Use a slug like `goal-step-N-<short-desc>` so files group naturally in `.ai-sessions/`. This file MUST be created on every step and MUST be staged in step 6. The session summary skill's procedure absorbs deviations from `.ai-sessions/implementation-notes.md` into the summary and clears the absorbed section; follow it inline as before.
-4. Lessons (optional). If this step surfaced a genuinely novel, durable lesson, read `${CLAUDE_PLUGIN_ROOT}/references/session-management.md` and apply its "Capturing Lessons" rules inline to append to `.ai-sessions/lessons.md`. Be conservative. Most steps add zero lessons.
-5. Commit message. Read `${CLAUDE_PLUGIN_ROOT}/skills/commit-message/SKILL.md` and execute its procedure inline. The output is `commit-msg.md` at the repo root. ALWAYS overwrite any existing `commit-msg.md`; it is gitignored and persists between commits, so a stale message from a prior commit will silently ride along into yours if you skip this step. If the dispatch prompt contained an `Info findings:` block, append a corresponding short section to the commit message body listing each info finding's rule and message on its own line.
+3. Per-batch session summary (MANDATORY). Read `${CLAUDE_PLUGIN_ROOT}/skills/session-summary/SKILL.md` and execute its procedure inline. Use the slug `goal-batch-<name>` for a batch, or `goal-step-N-<short-desc>` when the batch is `single`, so files group naturally in `.ai-sessions/`.
+   This file MUST be created on every batch and MUST be staged in step 6. The session summary skill's procedure absorbs deviations from `.ai-sessions/implementation-notes.md` into the summary and clears the absorbed section; follow it inline as before.
+4. Lessons (optional). If this batch surfaced a genuinely novel, durable lesson, read `${CLAUDE_PLUGIN_ROOT}/references/session-management.md` and apply its "Capturing Lessons" rules inline to append to `.ai-sessions/lessons.md`. Be conservative. Most batches add zero lessons.
+5. Commit message. Read `${CLAUDE_PLUGIN_ROOT}/skills/commit-message/SKILL.md` and execute its procedure inline. The output is `commit-msg.md` at the repo root.
+   The commit subject names the batch, and the body lists each step's title on its own line.
+   ALWAYS overwrite any existing `commit-msg.md`; it is gitignored and persists between commits, so a stale message from a prior commit will silently ride along into yours if you skip this step. If the dispatch prompt contained an `Info findings:` block, append a corresponding short section to the commit message body listing each info finding's rule and message on its own line.
 6. Commit. Stage exactly these files; enumerate them, do not use `git add -A`:
-   - (a) Every code/test file modified or created during the step.
-   - (b) `todo.md` (which `Mode: implement` updated to check off the item).
+   - (a) Every code/test file modified or created during the batch.
+   - (b) `todo.md` (which `Mode: implement` updated; it carries every checked step of the batch).
    - (c) The new `.ai-sessions/session-*.md` file from step 3. This is mandatory.
    - (d) `.ai-sessions/lessons.md` ONLY if step 4 appended to it.
    NEVER stage `commit-msg.md` (gitignored, but be explicit). After staging, run `git diff --staged --stat` and verify the file set matches (a)-(d). Then `git commit -S -F commit-msg.md`. Echo the resulting short SHA. If a pre-commit hook rejects the commit, capture its output verbatim in your `Failure:` report and stop; do NOT retry, do NOT amend, do NOT bypass with `--no-verify`, do NOT make a follow-up "fix" commit.
 7. Push. `git push` to the current branch's upstream. If no upstream is set, `git push -u origin HEAD`. If push fails (auth, conflict, hook), do NOT retry; capture the error verbatim in your report and stop.
-8. Skip `/init`. It's too heavy per step. The user runs it manually after the goal converges.
+8. Skip `/init`. It's too heavy per batch. The user runs it manually after the goal converges.
 9. Emit the `Finalize-Report` block (template below).
 
 ## Bundled (backwards compatible)
@@ -103,11 +113,12 @@ End your turn with EXACTLY the block for your mode, with no prose after it. Fiel
 ```
 Implement-Report:
 Mode:       implement
-Step:       <N>: <short description from todo.md>
+Batch:      <batch name | single>
+Step:       <N-M: batch name | N: short description from todo.md>
 Files:      <comma-separated paths, ≤120 chars, truncate with …>
 Tests:      <command> → <exit-code> (<short result, e.g. "12 passed">)
 Tree:       dirty (<insertions>+ <deletions>-)
-TodoDelta:  <e.g. "[x] Step 3: Add user model">
+TodoDelta:  <one line per step checked, e.g. "[x] Step 3: Add user model">
 Ready:      for validation
 Blockers:   <none | <one-line description>>
 ```
@@ -133,13 +144,14 @@ Blockers:   <none | <one-line description>>
 ```
 Finalize-Report:
 Mode:       finalize
-Step:       <N>: <short description>
+Batch:      <batch name | single>
+Step:       <N-M: batch name | N: short description>
 Files:      <comma-separated paths, ≤120 chars, truncate with …>
 Tests:      <command> → <exit-code> (<short result>)
 Commit:     <short-sha> <subject ≤80 chars>
 Push:       <ok | failed: <reason>>
 Status:     <clean | dirty: <reason>>
-TodoDelta:  <e.g. "[x] Step 3: Add user model">
+TodoDelta:  <one line per step checked, e.g. "[x] Step 3: Add user model">
 Lessons:    <added: <count> | none>
 Info-findings: <none | <count appended to commit body>>
 Blockers:   <none | <one-line description>>

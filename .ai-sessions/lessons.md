@@ -99,6 +99,7 @@ Omit categories with zero entries.
 
 - "X is the only Y" claims in agent docs get contradicted by the doc's own procedure before anything else does: validator.md's new anti-pattern line said declared linters were "the only subprocesses you run" while step 8 of the same file mandates piping findings through validate-findings.py. Cost the first warn-fix-clean validator round trip of the 0.6.0 run. Before writing an exclusivity claim, grep the same doc for other cases it must enumerate. (2026-07-15)
 - Execute doc-embedded runnable commands verbatim from the committed file before shipping; backslash escaping shifts meaning across tool-call, shell, and JSON layers, so interactive tests don't prove the doc's literal text works. Regex prompt guards need mid-string negative tests (`re.match` vs `re.search`). (2026-07-18)
+- A wording sweep during a fix pass can break a cross-file heading reference: protocol line 5 pointed at a heading that the sweep reworded, and the heading rename belongs to a later step. Grep the old phrase as a heading across bpe/ before rewording it, and leave cross-references alone when the rename is scheduled elsewhere. (2026-11-11)
 
 ## Design
 
