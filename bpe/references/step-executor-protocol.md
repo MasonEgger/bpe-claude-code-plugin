@@ -2,7 +2,8 @@
 
 Contract between `bpe:goal` (orchestrator), `bpe:step-executor` (worker), and the `/goal` evaluator. Anyone changing the executor's dispatch shape, mode routing, or report format must read this file first.
 
-Parallel to `references/validator-protocol.md`, which owns the whole-loop state machine and the validator's findings schema. Cross-reference that file for how the executor's modes fit into the per-step dispatch flow; this file owns the executor's contract at each dispatch.
+Parallel to `references/validator-protocol.md`, which owns the whole-loop state machine and the validator's findings schema.
+Cross-reference that file for how the executor's modes fit into the per-batch dispatch flow; this file owns the executor's contract at each dispatch.
 
 ## Role
 
@@ -36,7 +37,8 @@ Each row is a hard promise between the executor and the orchestrator. Violating 
 | Warm continuation | n/a | yes when sent by SendMessage | yes when sent by SendMessage | n/a |
 | Report format | `Implement-Report` | `Fix-Report` | `Finalize-Report` | bundled |
 
-A continuation that cannot proceed (context exhausted) returns `Failure:` so the orchestrator falls back to a cold dispatch.
+A continuation that cannot proceed because its context is exhausted returns a `Failure:` block whose `Failure:` line reads `context exhausted`.
+This one Failure triggers the orchestrator's cold fallback (playbook step 4 in `validator-protocol.md`) instead of stopping the loop.
 
 Per-mode additions:
 
@@ -129,7 +131,10 @@ Failure:    <one-line root cause>
 Action:     <what was tried, what's needed next>
 ```
 
-Emitted the moment any invariant fires. The orchestrator stops the loop on any `Failure:` block.
+Emitted the moment any invariant fires.
+The orchestrator stops the loop on any `Failure:` block, with two exceptions.
+A finalize test failure under the iteration cap re-enters the fix loop (playbook step 7b).
+A continuation `Failure: context exhausted` takes the cold fallback (playbook step 4).
 
 ## What the /goal evaluator must see
 

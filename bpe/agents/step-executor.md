@@ -27,6 +27,7 @@ Read the dispatch prompt for a `Mode:` line. Branch on its value:
 
 Route on the `Mode:` line of the latest message you received.
 A continuation message (a later `Mode: fix` or `Mode: finalize` sent to you after implement) skips re-reading `step-executor-protocol.md` and `validator-protocol.md` (the two opening paragraphs) when they are already in context.
+A continuation that cannot proceed because its context is exhausted returns `Failure: context exhausted`; the orchestrator then falls back to a cold dispatch.
 
 Echo the routed mode in user-facing text before pre-flight so the orchestrator transcript captures it.
 

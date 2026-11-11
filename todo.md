@@ -24,10 +24,10 @@ Per-step run on the installed 0.7.2 plugin: `/bpe:goal section Phase 1`, then `/
   - [x] step-executor-protocol.md: one batch per invocation, continuation routing, per-step verify, report fields
   - [x] agents/step-executor.md: routing, implement loop, finalize slug and commit body, templates
   - [x] Verify: old invariant gone; Batch fields present; frontmatter parses; plugin validate clean
-- [ ] Step 3: Drive batches from the orchestrator playbook
-  - [ ] Per-batch dispatch flow, SendMessage continuation, cold fallback, per-batch cap, recovery
-  - [ ] goal/SKILL.md template: one commit per batch; intro paragraph
-  - [ ] Verify: heading renamed; SendMessage and fallback present; render under 3000; plugin validate clean
+- [x] Step 3: Drive batches from the orchestrator playbook
+  - [x] Per-batch dispatch flow, SendMessage continuation, cold fallback, per-batch cap, recovery
+  - [x] goal/SKILL.md template: one commit per batch; intro paragraph
+  - [x] Verify: heading renamed; SendMessage and fallback present; render under 3000; plugin validate clean
 
 ### Section 3: Measurement script (#51 acceptance)
 

@@ -8,7 +8,12 @@ disable-model-invocation: true
 
 # BPE Autonomous Goal
 
-Set up a `/goal`-driven autonomous BPE run. The parent session orchestrates; each step is executed by the `bpe:step-executor` subagent in modes (`implement`, optional `fix` loop, `finalize`). When the step's plan.md section declares validators, `bpe:validator` runs between `implement` and `finalize` and the orchestrator drives the fix loop (max 3 iterations) per `${CLAUDE_PLUGIN_ROOT}/references/validator-protocol.md`. Fresh context per dispatch; the parent transcript stays tiny; the `/goal` evaluator watches it for completion.
+Set up a `/goal`-driven autonomous BPE run.
+The parent session orchestrates; each batch is executed by the `bpe:step-executor` subagent in modes (`implement`, optional `fix` loop, `finalize`).
+The executor runs per batch and stays warm across a batch's modes; the orchestrator continues it with `SendMessage`.
+A batch of one is a step.
+When the batch's plan.md section declares validators, `bpe:validator` runs cold between `implement` and `finalize` and the orchestrator drives the fix loop (max 3 iterations per batch) per `${CLAUDE_PLUGIN_ROOT}/references/validator-protocol.md`.
+The parent transcript stays tiny; the `/goal` evaluator watches it for completion.
 
 **Requires Claude Code v2.1.139+.** Pairs well with `/auto`. The `/goal` command itself must still be run by the user; slash commands cannot invoke other slash commands programmatically, so this command writes the assembled `/goal` invocation to `goal.md` at the repo root and you paste it from there.
 
@@ -110,7 +115,7 @@ READ ${CLAUDE_PLUGIN_ROOT}/references/validator-protocol.md "## Orchestrator Pla
 
 SEQUENTIAL DISPATCHES ONLY. One Agent call per turn. BPE steps share todo.md, git tree, test suite; parallel dispatches corrupt all three. After one dispatch + verification, YOUR TURN ENDS; the /goal evaluator decides if a new turn begins.
 
-Each committed step is EXACTLY ONE commit. No fixups, amends, or --no-verify. Every commit includes a new .ai-sessions/session-*.md. After a finalize dispatch, verify against the reported Commit SHA (NOT HEAD): git rev-parse HEAD equals it, the commit's file list holds a .ai-sessions/session-*.md, Tests shows exit 0. Any Failure (except a finalize test failure with iter<3: playbook 7b) or rule violation => echo RESUME and STOP.
+Each batch (a batch of one is a step) is EXACTLY ONE commit. No fixups, amends, or --no-verify. Every commit includes a new .ai-sessions/session-*.md. After a finalize dispatch, verify against the reported Commit SHA (NOT HEAD): git rev-parse HEAD equals it, the commit's file list holds a .ai-sessions/session-*.md, Tests shows exit 0. Any Failure (except a finalize test failure with iter<3: playbook 7b; or a continuation `context exhausted`: playbook 4 cold fallback) or rule violation => echo RESUME and STOP.
 
 Hard rules: SEQUENTIAL only. Never /clear or /compact (kills the active /goal). Never commit on the subagent's behalf, even on Failure. Stop after 50 successful step completions with "dispatch cap reached".
 
@@ -136,7 +141,9 @@ This command writes the `/goal` argument to disk; it does not execute it. The us
 
 ## Step 5: Resume Path on Failure
 
-The goal loop halts on any `Failure:` from a subagent or `BPE rule violation:` from the orchestrator, with one exception: a `mode=finalize` `Failure:` that carries failing test output and arrives with `iter < 3` re-enters the fix loop (playbook step 7b in `validator-protocol.md`) instead of halting, and only halts when `iter == 3` or the failure is not a test failure.
+The goal loop halts on any `Failure:` from a subagent or `BPE rule violation:` from the orchestrator, with two exceptions.
+A `mode=finalize` `Failure:` that carries failing test output and arrives with `iter < 3` re-enters the fix loop (playbook step 7b in `validator-protocol.md`) instead of halting, and only halts when `iter == 3` or the failure is not a test failure.
+A continuation `Failure: context exhausted` also does not halt; it takes the cold fallback (playbook step 4).
 The orchestrator playbook (`validator-protocol.md` "## Orchestrator Playbook") instructs the parent to echo its `### RESUME` block verbatim before stopping.
 That block is the recovery cheat-sheet; the paths below cover the common failure modes in more detail.
 
