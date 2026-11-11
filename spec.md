@@ -711,7 +711,7 @@ Four work items, each traceable to an issue, plus the version bump.
    - After batch mode lands, run this release's own remaining plan in batch mode and record the comparison in `.ai-sessions/research/batch-mode-comparison.md`: dispatches, subagent minutes, subagent and orchestrator cache-read tokens, and warn rate per first-pass validation, against the baseline.
 5. **Version bump** to 0.7.3.
 
-### Design decisions (proposed, confirm at review)
+### Design decisions (confirmed 2026-11-11)
 
 - Decision: batch boundaries are plan-time and section-shaped; the orchestrator never regroups at run time (2026-11-03).
 - Decision: the warm executor continues through `SendMessage`, with a cold dispatch in the same mode as the fallback; the alternative, a fresh dispatch per mode, is exactly the cost the baseline measures.

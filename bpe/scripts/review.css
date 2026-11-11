@@ -245,6 +245,15 @@ body {
   box-shadow: inset 0 0 0 1.5px var(--surface);
 }
 
+/* Save plus the injected Copy JSON and Download JSON recovery buttons share
+   one wrapper so the narrow-screen rules can position the group as a unit. */
+.review-actions {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
 .review-save {
   flex: none;
   width: 100%;
@@ -262,6 +271,13 @@ body {
 }
 .review-save:hover {
   filter: brightness(1.06);
+}
+/* Recovery buttons read as secondary so Save stays the obvious primary. */
+.review-save.review-save--recovery {
+  background: var(--surface);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  box-shadow: none;
 }
 .review-save:disabled {
   opacity: 0.6;
@@ -698,11 +714,18 @@ body {
   .review-toc__nav {
     max-height: 40vh;
   }
-  .review-save {
+  /* Pin the whole action group, not each button: three buttons each fixed
+     to the same inset stack on one spot and only the last one is visible. */
+  .review-actions {
     position: fixed;
     inset: auto 1rem 1rem 1rem;
-    width: auto;
+    flex-direction: row;
     z-index: 40;
+  }
+  .review-save {
+    flex: 1 1 0;
+    width: auto;
+    padding-inline: 0.5rem;
   }
   .review-section {
     width: 100%;
