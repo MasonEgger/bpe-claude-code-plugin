@@ -17,9 +17,9 @@ Per-step run on the installed 0.7.2 plugin: `/bpe:goal section Phase 1`, then `/
 
 ### Section 2: Batch mode (#51)
 
-- [ ] Step 1: Teach /bpe:plan the Batch line and the sizing rule
-  - [ ] `## Batch Line` in validator-protocol.md; `## Batch Boundaries` in plan/SKILL.md; review/SKILL.md plan bullet
-  - [ ] Verify: headings present; sizing rule present; plugin validate clean
+- [x] Step 1: Teach /bpe:plan the Batch line and the sizing rule
+  - [x] `## Batch Line` in validator-protocol.md; `## Batch Boundaries` in plan/SKILL.md; review/SKILL.md plan bullet
+  - [x] Verify: headings present; sizing rule present; plugin validate clean
 - [ ] Step 2: Give the executor the batch contract and warm continuation
   - [ ] step-executor-protocol.md: one batch per invocation, continuation routing, per-step verify, report fields
   - [ ] agents/step-executor.md: routing, implement loop, finalize slug and commit body, templates

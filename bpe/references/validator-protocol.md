@@ -229,6 +229,19 @@ Plans written before 0.6.0 declare `**Validator consults:**` instead of `**Tools
 The validator and orchestrator honor the legacy block name: treat it as a Tools block declaring Skills and MCPs with an empty Linters list.
 New plans emit `**Tools:**` only.
 
+## Batch Line
+
+A plan section declares its batch in a `**Batch:** <name>` line, placed after the section's Tools block.
+`<name>` is kebab-case and unique in the plan.
+The literal `**Batch:** single` keeps the per-step loop for that section.
+A batch's steps are the consecutive todo.md steps that share one batch name.
+
+To split a section into several batches, name them `<name>-a`, `<name>-b`, and so on.
+Put each name on a per-step `**Batch:**` line placed under the `### Step` heading.
+A per-step line shadows the section line.
+
+A plan with no Batch lines (written before 0.7.3) runs every section as `single`.
+
 ## Tool-list propagation
 
 `bpe:brainstorm` enumerates available MCPs and skills, asks the user which apply to the project, and writes them to `spec.md` under `## Available tooling`. `bpe:plan` propagates that list per-section under `**Tools:**` (legacy plans: `**Validator consults:**`, per the transitional read above). `bpe:goal` reads the per-section block when dispatching the validator for a step in that section.
