@@ -90,7 +90,13 @@ Every item in todo.md is checked off; <test-cmd> exits 0 with no failing tests; 
 
 ## Step 3: Write the `/goal` Argument to `goal.md`
 
-`/goal` enforces a hard **4000-character cap** on its argument. STRICTLY enforce it: after substituting every placeholder, count the characters of the assembled file content from the condition line through the final `Mode:` line. If the count exceeds 4000, trim the orchestrator prose; NEVER the safety contracts, the per-turn steps, or the verification rules; and recount. NEVER write content over 4000 characters to `goal.md`. The condition leads (the evaluator focuses on its AND clauses); the orchestrator playbook follows in the same message.
+`/goal` enforces a hard **4000-character cap** on its argument.
+STRICTLY enforce it: after substituting every placeholder, count the characters of the assembled file content from the condition line through the final `Mode:` line.
+If the count exceeds 4000, trim the orchestrator prose; NEVER the safety contracts or the verification rules; and recount.
+NEVER write content over 4000 characters to `goal.md`.
+The condition leads (the evaluator focuses on its AND clauses); the orchestrator prose follows in the same message.
+The procedure itself lives in `${CLAUDE_PLUGIN_ROOT}/references/validator-protocol.md` "## Orchestrator Playbook", which the orchestrator reads at the start of every turn.
+The template keeps only the condition, the read instruction, and the hard rules, so a procedure change no longer needs goal.md regeneration.
 
 The user will run `/goal @goal.md`. Claude Code's `@` expansion inlines the file contents as the `/goal` argument, so `goal.md` must contain ONLY the argument body. **The file MUST NOT start with `/goal `** or the expansion would produce `/goal /goal …`.
 
@@ -100,36 +106,15 @@ Use the Write tool to overwrite `goal.md` at the repo root with exactly the cont
 <condition from step 2>
 
 You're the orchestrator for a validator-aware autonomous BPE run. Loop until the goal condition above is met.
-
-READ ${CLAUDE_PLUGIN_ROOT}/references/validator-protocol.md ONCE AT TURN START. It defines the per-step state machine (implement -> validator + fix loop -> finalize), the findings schema, the iteration cap, and interrupted-dispatch recovery. Follow it exactly.
+READ ${CLAUDE_PLUGIN_ROOT}/references/validator-protocol.md "## Orchestrator Playbook" AT THE START OF EVERY TURN and follow it exactly. It holds the per-turn procedure: branch check, interruption check, state machine, validator and fix loop, finalize verification.
 
 SEQUENTIAL DISPATCHES ONLY. One Agent call per turn. BPE steps share todo.md, git tree, test suite; parallel dispatches corrupt all three. After one dispatch + verification, YOUR TURN ENDS; the /goal evaluator decides if a new turn begins.
 
-Each committed step is EXACTLY ONE commit. No fixups, amends, or --no-verify. Every commit includes a new .ai-sessions/session-*.md (the executor's mode=finalize creates it; you verify it landed). Any Failure (except a finalize test failure under the cap: step 7) or rule violation => echo RESUME (below) and STOP.
-
-Per turn:
-1. git rev-parse --abbrev-ref HEAD; abort if main/master.
-2. INTERRUPTION CHECK: last dispatch ended with no report block (limit pause, crash, kill)? Tree is untrusted: git reset --hard && git clean -fd; reset iter; redo the item from mode=implement.
-3. Read first `- [ ]` in todo.md. None remain => run <test-cmd>, echo `git log origin/<branch>..HEAD`, stop.
-4. Execute one state-machine step from validator-protocol.md against the current todo item (turn 1 implement, optional turns 2..K validator + fix, final turn finalize). Track per-step iter; reset it on a new todo item.
-5. For a validator dispatch: read the current section's `**Tools:**` block in plan.md (or legacy `**Validator consults:**` line). If none or absent, skip validator and dispatch executor mode=finalize next turn. Otherwise pass the section name and its Skills, MCPs, and Linters verbatim to bpe:validator with Iteration=iter and Diff source=`git diff HEAD`. Pipe its ```findings``` block through ${CLAUDE_PLUGIN_ROOT}/scripts/validate-findings.py; exit 1 => Failure (malformed output), stop.
-6. Verdict handling: clean OR only info => next turn dispatches finalize (carry info findings into the finalize prompt as "Info findings: <list>"). block/warn and iter<3 => next turn dispatches executor mode=fix with the validated findings block; iter+=1. block/warn and iter==3 => Failure, echo unresolved findings, echo RESUME, STOP.
-7. For a finalize dispatch return: parse the Finalize-Report. VERIFY against the reported SHA (NOT HEAD; HEAD is unreliable if anything raced):
-   a. git rev-parse HEAD must equal Commit-sha.
-   b. git show --stat --name-only <sha> | grep -E '^\.ai-sessions/session-.*\.md$' must be non-empty.
-   c. Tests field must indicate exit 0.
-   Any check fails => echo "BPE rule violation: <details>", echo RESUME, STOP.
-7b. Finalize Failure with test output and iter<3: build a finalize-test-failure block (validator-protocol.md), validate, dispatch mode=fix (iter+=1), resume. iter==3 or non-test failure => RESUME, STOP.
-8. Echo `git log -1 --format="%h %s"` and `git status --short`. YOUR TURN ENDS.
-
-RESUME:
-- Read the Failure or rule-violation reason above.
-- Fix root cause (code, hook, plan.md).
-- Clean tree: `git commit -S -F commit-msg.md` if commit failed; `git reset --hard && git clean -fd` if partial.
-- Mark todo.md `[x]` for any step you completed manually.
-- Re-run: `/goal @goal.md` (picks up from first `- [ ]`).
+Each committed step is EXACTLY ONE commit. No fixups, amends, or --no-verify. Every commit includes a new .ai-sessions/session-*.md. After a finalize dispatch, verify against the reported Commit SHA (NOT HEAD): git rev-parse HEAD equals it, the commit's file list holds a .ai-sessions/session-*.md, Tests shows exit 0. Any Failure (except a finalize test failure with iter<3: playbook 7b) or rule violation => echo RESUME and STOP.
 
 Hard rules: SEQUENTIAL only. Never /clear or /compact (kills the active /goal). Never commit on the subagent's behalf, even on Failure. Stop after 50 successful step completions with "dispatch cap reached".
+
+RESUME: on any stop, echo the "### RESUME" block from the playbook verbatim.
 
 Mode: <mode>. Test: <test-cmd>. Branch: <branch>.
 ```
@@ -151,14 +136,17 @@ This command writes the `/goal` argument to disk; it does not execute it. The us
 
 ## Step 5: Resume Path on Failure
 
-The goal loop halts on any `Failure:` from a subagent or `BPE rule violation:` from the orchestrator, with one exception: a `mode=finalize` `Failure:` that carries failing test output and arrives with `iter < 3` re-enters the fix loop (per-turn step 7b) instead of halting, and only halts when `iter == 3` or the failure is not a test failure.
-The orchestrator playbook (Step 3) instructs the parent to echo a `RESUME:` block verbatim before stopping. That block is the recovery cheat-sheet; the paths below cover the common failure modes in more detail.
+The goal loop halts on any `Failure:` from a subagent or `BPE rule violation:` from the orchestrator, with one exception: a `mode=finalize` `Failure:` that carries failing test output and arrives with `iter < 3` re-enters the fix loop (playbook step 7b in `validator-protocol.md`) instead of halting, and only halts when `iter == 3` or the failure is not a test failure.
+The orchestrator playbook (`validator-protocol.md` "## Orchestrator Playbook") instructs the parent to echo its `### RESUME` block verbatim before stopping.
+That block is the recovery cheat-sheet; the paths below cover the common failure modes in more detail.
 
 ### Resume steps
 
 1. **Read the failure reason.** The parent transcript contains the executor's `Failure:` report (schema in `${CLAUDE_PLUGIN_ROOT}/references/step-executor-protocol.md`) or the orchestrator's `BPE rule violation:` message.
 2. **Fix the root cause.** Common cases:
-   - Usage-limit pause, crash, or kill mid-dispatch: nothing to fix. The playbook's interruption check (per-turn step 2) resets the tree with `git reset --hard && git clean -fd` and redoes the item from `mode=implement` when the loop resumes. Half-finished dispatch work must never survive into the next dispatch; the commit is the only durable unit.
+   - Usage-limit pause, crash, or kill mid-dispatch: nothing to fix.
+     The playbook's interruption check (playbook step 2 in `validator-protocol.md`) resets the tree with `git reset --hard && git clean -fd` and redoes the item from `mode=implement` when the loop resumes.
+     Half-finished dispatch work must never survive into the next dispatch; the commit is the only durable unit.
    - Tests red at implement-time: fix the code or the test.
    - Validator blocks at iter 3: adjust the section's `**Tools:**` block in `plan.md`, or change the code the validator objected to.
    - Pre-commit hook rejects: fix the hook config, or fix the change so the hook passes.
@@ -168,7 +156,8 @@ The orchestrator playbook (Step 3) instructs the parent to echo a `RESUME:` bloc
    - **Finalize-stage failure** (commit or push): the work is done. Commit or push it manually. `git commit -S -F commit-msg.md` if the commit was rejected; `git push` if only the push failed.
    - **Implement- or fix-stage failure**: the work is partial and uncommitted. Either `git reset --hard && git clean -fd` to drop it (tracked edits and untracked leftovers both) and let the loop retry the step, or finish the step manually.
 4. **Update `todo.md`.** Any step you completed manually needs its checkbox flipped to `- [x]` so the loop skips it on resume.
-5. **Re-run.** `/goal @goal.md` picks up from the first `- [ ]` in `todo.md`. The orchestrator playbook, condition, mode, test command, and branch are all baked into `goal.md`, so the resume is a single invocation.
+5. **Re-run.** `/goal @goal.md` picks up from the first `- [ ]` in `todo.md`.
+   The condition, mode, test command, and branch are baked into `goal.md`, and the playbook is read fresh each turn, so the resume is a single invocation.
 
 ### When to regenerate goal.md
 
@@ -176,6 +165,8 @@ Re-run `/bpe:goal` before `/goal @goal.md` if any of these changed since the las
 
 - **Mode.** Switching from `full` to `step` (or vice versa) requires a new goal.md so the condition matches.
 - **Environment.** Test runner switched, branch was renamed, or plan.md's section names changed.
-- **Plugin file fix.** Editing a subagent file (fresh per dispatch) doesn't need regeneration. Editing the orchestrator playbook (`skills/goal/SKILL.md` Step 3) does; re-run `/bpe:goal` to rewrite goal.md.
+- **Plugin file fix.** Editing a subagent file (fresh per dispatch) doesn't need regeneration.
+  Editing `references/validator-protocol.md` "## Orchestrator Playbook" takes effect on the next turn with no regeneration.
+- **Template change.** Editing the goal.md template in Step 3 still requires re-running `/bpe:goal` to rewrite goal.md.
 
 Do NOT `/goal clear` unless you want to abandon the current goal entirely. `clear` resets the evaluator's state; the next `/goal @goal.md` starts a fresh loop and the transcript loses the failure context.
