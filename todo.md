@@ -31,10 +31,10 @@ Per-step run on the installed 0.7.2 plugin: `/bpe:goal section Phase 1`, then `/
 
 ### Section 3: Measurement script (#51 acceptance)
 
-- [ ] Step 1: Land goal-run-report.py and reproduce the baseline
-  - [ ] Script with span flags, kind classification, three tables
-  - [ ] Verify: baseline totals reproduced exactly; missing path exits 1
-  - [ ] Baseline note's script bullet replaced with the command
+- [x] Step 1: Land goal-run-report.py and reproduce the baseline
+  - [x] Script with span flags, kind classification, three tables
+  - [x] Verify: baseline totals reproduced exactly; missing path exits 1
+  - [x] Baseline note's script bullet replaced with the command
 
 ## Phase 2
 

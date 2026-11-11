@@ -85,7 +85,7 @@ Dispatch count, not subagent size, is the lever on orchestrator cost; this is th
 - Minutes: first to last timestamp in the subagent transcript.
 - Tokens: the sum of `usage` over the subagent's assistant entries (`cache_read_input_tokens`, `cache_creation_input_tokens`, `output_tokens`; uncached `input_tokens` were under 200 per dispatch and are omitted).
 - Orchestrator tokens: the same sum over the parent's assistant entries inside the run span.
-- Script: an ad hoc Python pass over the two transcript shapes; the 0.7.3 comparison should land it as `scripts/goal-run-report.py` so the after measurement uses the same arithmetic.
+- Script: `bpe/scripts/goal-run-report.py ~/.claude/projects/-home-mmegger-Code-MasonEgger-bpe-claude-code-plugin/562f6f3a-4df4-409c-ae81-62d107c74ffa.jsonl --since 2026-11-09T22:40:00Z --until 2026-11-10T01:00:00Z`; it prints the per-dispatch, by-kind, and orchestrator tables.
 
 ## What To Compare After Batch Mode
 
