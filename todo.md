@@ -8,9 +8,9 @@ Per-step run on the installed 0.7.2 plugin: `/bpe:goal section Phase 1`, then `/
 
 ### Section 1: Playbook headroom
 
-- [ ] Step 1: Add the Orchestrator Playbook section to validator-protocol.md
-  - [ ] `## Orchestrator Playbook` after `## Per-step dispatch flow`, with Per Turn, RESUME, Hard Rules
-  - [ ] Verify: section present; safety tokens grep-found; plugin validate clean
+- [x] Step 1: Add the Orchestrator Playbook section to validator-protocol.md
+  - [x] `## Orchestrator Playbook` after `## Per-step dispatch flow`, with Per Turn, RESUME, Hard Rules
+  - [x] Verify: section present; safety tokens grep-found; plugin validate clean
 - [ ] Step 2: Shrink the goal.md template to condition, read instruction, and hard rules
   - [ ] Template trimmed; Step 5 references and regeneration note updated
   - [ ] Verify: rendered goal.md under 3000 chars; plugin validate clean

@@ -39,6 +39,53 @@ For each unchecked item in `todo.md` the orchestrator runs this state machine. S
      => Final test run, session summary, commit message, single commit, push.
 ```
 
+## Orchestrator Playbook
+
+The orchestrator reads this section at the start of every turn.
+goal.md carries only the condition, the read instruction, and the hard rules, so this section is the procedure.
+
+### Per Turn
+
+1. `git rev-parse --abbrev-ref HEAD`; abort if main/master.
+2. INTERRUPTION CHECK: last dispatch ended with no report block (limit pause, crash, kill)?
+   Tree is untrusted: `git reset --hard && git clean -fd`; reset iter; redo the item from mode=implement.
+3. Read first `- [ ]` in todo.md.
+   None remain => run `<test-cmd>`, echo `git log origin/<branch>..HEAD`, stop.
+4. Execute one state-machine step from this file against the current todo item (turn 1 implement, optional turns 2..K validator + fix, final turn finalize).
+   Track per-step iter; reset it on a new todo item.
+5. For a validator dispatch: read the current section's `**Tools:**` block in plan.md (or legacy `**Validator consults:**` line).
+   If none or absent, skip validator and dispatch executor mode=finalize next turn.
+   Otherwise pass the section name and its Skills, MCPs, and Linters verbatim to bpe:validator with Iteration=iter and Diff source=`git diff HEAD`.
+   Pipe its ```findings``` block through `${CLAUDE_PLUGIN_ROOT}/scripts/validate-findings.py`; exit 1 => Failure (malformed output), stop.
+6. Verdict handling: clean OR only info => next turn dispatches finalize (carry info findings into the finalize prompt as "Info findings: <list>").
+   block/warn and iter<3 => next turn dispatches executor mode=fix with the validated findings block; iter+=1.
+   block/warn and iter==3 => Failure, echo unresolved findings, echo RESUME, STOP.
+7. For a finalize dispatch return: parse the Finalize-Report.
+   VERIFY against the reported SHA (NOT HEAD; HEAD is unreliable if anything raced):
+   a. git rev-parse HEAD must equal Commit-sha.
+   b. `git show --stat --name-only <sha> | grep -E '^\.ai-sessions/session-.*\.md$'` must be non-empty.
+   c. Tests field must indicate exit 0.
+   Any check fails => echo "BPE rule violation: <details>", echo RESUME, STOP.
+7b. Finalize Failure with test output and iter<3: build a finalize-test-failure block (see "Finalize-red recovery"), validate, dispatch mode=fix (iter+=1), resume.
+   iter==3 or non-test failure => RESUME, STOP.
+8. Echo `git log -1 --format="%h %s"` and `git status --short`.
+   YOUR TURN ENDS.
+
+### RESUME
+
+- Read the Failure or rule-violation reason above.
+- Fix root cause (code, hook, plan.md).
+- Clean tree: `git commit -S -F commit-msg.md` if commit failed; `git reset --hard && git clean -fd` if partial.
+- Mark todo.md `[x]` for any step you completed manually.
+- Re-run: `/goal @goal.md` (picks up from first `- [ ]`).
+
+### Hard Rules
+
+- SEQUENTIAL dispatches only.
+- Never /clear or /compact (kills the active /goal).
+- Never commit on the subagent's behalf, even on Failure.
+- Stop after 50 successful step completions with "dispatch cap reached".
+
 ## Interrupted dispatches (usage limits, crashes)
 
 A dispatch that ends without its report block (`Implement-Report`, `Fix-Report`, `Finalize-Report`, or a ```findings``` block) was interrupted: a usage-limit pause, a crash, or a killed subagent. The tree it leaves behind is untrusted; a half-applied edit is worse than no edit, because the next dispatch builds on it without knowing it is partial.
