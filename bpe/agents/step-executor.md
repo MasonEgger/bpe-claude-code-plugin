@@ -56,7 +56,7 @@ Procedure:
 
 ## Mode: fix
 
-Contract: dirty tree at start (do NOT run a clean-tree check), dirty tree at end, no commit, `Fix-Report` at return. Full contract in `step-executor-protocol.md`.
+Contract: dirty tree at start (do NOT run a clean-tree check; a final sweep fix may start clean), dirty tree at end, no commit, `Fix-Report` at return. Full contract in `step-executor-protocol.md`.
 
 Procedure:
 
@@ -79,6 +79,7 @@ Procedure:
 1. Branch + tree-state check. `git rev-parse --abbrev-ref HEAD` (abort on `main`/`master`) AND `git status --short` (expect non-empty; abort with `Failure:` if EMPTY since there is nothing to commit). Echo both.
 2. Final test run. Run the project's test command one final time and confirm exit 0. This is your last chance to catch issues. Abort with `Failure:` if red.
 3. Per-batch session summary (MANDATORY). Read `${CLAUDE_PLUGIN_ROOT}/skills/session-summary/SKILL.md` and execute its procedure inline. Use the slug `goal-batch-<name>` for a batch, or `goal-step-N-<short-desc>` when the batch is `single`, so files group naturally in `.ai-sessions/`.
+   When the dispatch says `Step: sweep` (the final sweep's fixes), use the slug `goal-final-sweep`, stage the fixed files and the session summary, leave todo.md alone, and report `TodoDelta: none`.
    This file MUST be created on every batch and MUST be staged in step 6. The session summary skill's procedure absorbs deviations from `.ai-sessions/implementation-notes.md` into the summary and clears the absorbed section; follow it inline as before.
 4. Lessons (optional). If this batch surfaced a genuinely novel, durable lesson, read `${CLAUDE_PLUGIN_ROOT}/references/session-management.md` and apply its "Capturing Lessons" rules inline to append to `.ai-sessions/lessons.md`. Be conservative. Most batches add zero lessons.
 5. Commit message. Read `${CLAUDE_PLUGIN_ROOT}/skills/commit-message/SKILL.md` and execute its procedure inline. The output is `commit-msg.md` at the repo root.

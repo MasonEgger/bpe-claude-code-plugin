@@ -43,12 +43,12 @@ These sections run in batch mode.
 
 ### Section 4: Final sweep (#52)
 
-- [ ] Step 1: Add the final-validator agent and its profile seat
-  - [ ] agents/final-validator.md; model-profiles.md key and tier-map row; .example entry; README
-  - [ ] Verify: frontmatter and .example parse; plugin validate clean
-- [ ] Step 2: Run the sweep at the end of the loop
-  - [ ] `## Final Sweep` in validator-protocol.md; playbook step 3; executor sweep finalize; goal condition clause
-  - [ ] Verify: sample block passes validate-findings.py; render under 3000; plugin validate clean
+- [x] Step 1: Add the final-validator agent and its profile seat
+  - [x] agents/final-validator.md; model-profiles.md key and tier-map row; .example entry; README
+  - [x] Verify: frontmatter and .example parse; plugin validate clean
+- [x] Step 2: Run the sweep at the end of the loop
+  - [x] `## Final Sweep` in validator-protocol.md; playbook step 3; executor sweep finalize; goal condition clause
+  - [x] Verify: sample block passes validate-findings.py; render under 3000; plugin validate clean
 
 ### Section 5: Checkpoint and report budget (#53)
 

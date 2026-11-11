@@ -34,6 +34,7 @@ The underlying file layout moved from `commands/<name>.md` to `skills/<name>/SKI
 |---|---|---|
 | `bpe:step-executor` | sonnet | Worker for `/bpe:goal` autonomous runs. Executes one plan step per dispatch in `implement`, `fix`, or `finalize` mode. |
 | `bpe:validator` | opus | Read-only QA reviewer dispatched between `implement` and `finalize`. Checks the uncommitted diff against declared skills, MCPs, and linters, and against the spec's fences (Invariants, Non-goals, Deferred); returns a structured findings block. |
+| `bpe:final-validator` | opus | Read-only QA reviewer dispatched once at the end of a `/bpe:goal` run over the whole branch diff. Uses the union of every section's Tools block plus the spec fences, and runs even when every section declared `Tools: none`. |
 | `bpe:cheap-research` | sonnet | Fast, cheap external research: tool discovery, docs lookup, quick fact-checks. Dispatched by `/bpe:plan`, `/bpe:brainstorm`, and `/bpe:retrofit` when they need external info. |
 
 ## The BPE Loop

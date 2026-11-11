@@ -13,6 +13,7 @@ Executor-specific detail (mode-by-mode invariants, report field semantics, orche
    Never commits, never edits files.
 2. `bpe:step-executor` (worker). Three modes: `implement` (TDD, no commit), `fix` (apply validator findings, no commit), `finalize` (session summary, commit, push). Owns the commit transaction in `finalize` only.
 3. `bpe:validator` (QA). Read-only review of the uncommitted diff against MCPs and skills passed in by the orchestrator, and against the spec's fences (see "Spec fences" below). Emits a structured findings block. Never edits, never commits, never dispatches other agents.
+4. `bpe:final-validator` (end-of-run QA). Same read-only shape as `bpe:validator`, dispatched once after the last todo item finalizes, over the whole branch diff (see "Final Sweep"). Never edits, never commits, never dispatches other agents.
 
 ## Per-batch dispatch flow
 
@@ -63,7 +64,8 @@ goal.md carries only the condition, the read instruction, and the hard rules, so
    Tree is untrusted: `git reset --hard && git clean -fd`; reset iter; redo the batch from mode=implement.
    A SendMessage continuation with no report block is not an interruption; it takes the step 4 cold fallback first, with no reset, because the tree carries the work.
 3. Read first `- [ ]` in todo.md and resolve its batch per "Batch Line" (the steps sharing its batch name).
-   None remain => run `<test-cmd>`, echo `git log origin/<branch>..HEAD`, stop.
+   None remain => run the final sweep per "Final Sweep" (full and section modes only), then run `<test-cmd>`, echo `git log origin/<branch>..HEAD`, stop.
+   In section mode, "none remain" means no `- [ ]` remains under the named section; later sections may still hold unchecked items.
 4. Execute one state-machine step from this file against the current batch (turn 1 implement, optional turns 2..K validator + fix, final turn finalize).
    Turn 1 dispatches implement for the whole batch with an Agent call and records the returned agent id.
    Fix and finalize turns send to that id with SendMessage (load it first with ToolSearch `select:SendMessage`).
@@ -84,6 +86,7 @@ goal.md carries only the condition, the read instruction, and the hard rules, so
    b. `git show --stat --name-only <sha> | grep -E '^\.ai-sessions/session-.*\.md$'` must be non-empty.
    c. Tests field must indicate exit 0.
    d. Every step of the batch has a `TodoDelta:` line and is checked off in todo.md.
+      A `Step: sweep` finalize skips this check (see "Final Sweep").
    Any check fails => echo "BPE rule violation: <details>", echo RESUME, STOP.
 7b. Finalize Failure with test output and iter<3 (a continuation `Failure: context exhausted` is not this case; it takes the step 4 cold fallback): build a finalize-test-failure block (see "Finalize-red recovery"), validate, dispatch mode=fix (iter+=1), resume.
    iter==3 or non-test failure => RESUME, STOP.
@@ -150,6 +153,41 @@ The orchestrator builds the block, pipes it through `scripts/validate-findings.p
 The finalize red consumes one fix-loop iteration, under the same 3-iteration cap as any other `block` finding.
 Halt the loop with RESUME only when `iter == 3`, or when the finalize `Failure:` is not a test failure (a commit rejection, a push rejection, or a missing session summary); those cases halt immediately.
 A continuation `Failure: context exhausted` is neither case; it takes the playbook step 4 cold fallback.
+
+## Final Sweep
+
+The final sweep is one whole-branch review at the end of the run.
+It runs after the last todo item finalizes, in full and section modes, and never in step mode.
+In full mode the last item is the last `- [ ]` in todo.md; in section mode it is the last `- [ ]` under the named section, even when later sections still hold unchecked items.
+Per-batch review sees one batch's diff; the sweep catches what only shows across batches.
+
+Dispatch `bpe:final-validator` cold with these fields:
+
+- `Diff source:` `git diff $(git merge-base main HEAD)` (branch base against the working tree, so uncommitted fixes from a sweep `mode=fix` pass are visible), plus `git status --short` for untracked files, with `--name-only` for the fence checks.
+- `Iteration:` the sweep's own counter, starting at 1.
+- `Section:` `all`.
+
+The sweep runs even when every section declared `Tools: none`.
+Pipe its findings block through `scripts/validate-findings.py`; exit 1 is a Failure, as for any validator.
+
+Verdict handling:
+
+- Clean, or only `info`: no fix pass.
+  With no fixes made, there is no sweep commit.
+- `block` or `warn` and iteration under 3: dispatch `step-executor` with `mode=fix` and the validated findings.
+  The dispatch is cold, because no warm agent spans the whole branch.
+  Then dispatch `bpe:final-validator` again with the iteration incremented.
+- Clean after one or more fix passes: dispatch one `mode=finalize` with `Step: sweep`.
+  The subject is "Apply final sweep fixes" and `TodoDelta` is `none`.
+  Carry any `info` findings into that dispatch as an `Info findings:` block.
+  The orchestrator verifies that commit with playbook checks 7a to 7c.
+  Check 7d is skipped, because the sweep checks off no todo items.
+- `block` or `warn` at iteration 3: Failure with the unresolved findings, then RESUME.
+
+The sweep's iteration cap is 3, the same as the per-batch cap.
+
+The first sweep `mode=fix` dispatch starts on a clean tree, because every batch is already committed.
+That is the one exception to the dirty-at-start fix contract; the dispatch still ends dirty.
 
 ## Severity guidance
 
@@ -302,7 +340,7 @@ A section whose Tools block is `none` gets no validator dispatch and relies on t
 ## Hard rules
 
 - Validator never edits files, never commits, never dispatches other agents.
-- Executor `mode=fix` is the only mode that may start with a dirty tree.
+- Executor `mode=fix` is the only mode that may start with a dirty tree (a final sweep fix may also start clean).
 - Executor `mode=finalize` is the only mode that commits or pushes.
 - Orchestrator never commits, never edits, never bypasses the iteration cap.
 - All findings blocks pass through `scripts/validate-findings.py` before being acted on.

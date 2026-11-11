@@ -85,12 +85,12 @@ The next unchecked item in todo.md at the start of this run is now checked off; 
 
 **section <name>:**
 ```
-Every item under the "<name>" section of todo.md is checked off; <test-cmd> exits 0; git status --short is empty; all commits for that section are pushed to origin/<branch>.
+Every item under the "<name>" section of todo.md is checked off; <test-cmd> exits 0; git status --short is empty; all commits for that section are pushed to origin/<branch>; the final sweep returned clean.
 ```
 
 **full:**
 ```
-Every item in todo.md is checked off; <test-cmd> exits 0 with no failing tests; git status --short is empty; all commits are pushed to origin/<branch>; .ai-sessions/lessons.md contains any new lessons captured during the run.
+Every item in todo.md is checked off; <test-cmd> exits 0 with no failing tests; git status --short is empty; all commits are pushed to origin/<branch>; the final sweep returned clean; .ai-sessions/lessons.md contains any new lessons captured during the run.
 ```
 
 ## Step 3: Write the `/goal` Argument to `goal.md`

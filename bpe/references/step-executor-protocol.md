@@ -12,7 +12,7 @@ The dispatch prompt names the batch and its steps.
 The orchestrator sets a `Mode:` field in the dispatch prompt that routes the executor into one of four flows:
 
 - `Mode: implement`. Execute the plan's sub-steps for each step of the batch, in order. Leaves the tree dirty. No commit.
-- `Mode: fix`. Apply validator findings. Dirty tree in, dirty tree out. No commit.
+- `Mode: fix`. Apply validator findings. Dirty tree in, dirty tree out (a final sweep fix may start clean). No commit.
 - `Mode: finalize`. Final test run, session summary, single commit, push. The only mode that mutates git state.
 - No `Mode:` line. Backwards-compatible bundled flow. Runs implement then finalize in one dispatch. Retained for pre-validator callers.
 
@@ -28,7 +28,7 @@ Each row is a hard promise between the executor and the orchestrator. Violating 
 
 | Field | implement | fix | finalize | bundled |
 |---|---|---|---|---|
-| Tree state at start | clean | dirty | dirty | clean |
+| Tree state at start | clean | dirty (clean for a final sweep fix) | dirty | clean |
 | Tree state at end | dirty | dirty | clean | clean |
 | Commits made | 0 | 0 | exactly 1 | exactly 1 |
 | Pushes made | 0 | 0 | exactly 1 | exactly 1 |
@@ -52,6 +52,8 @@ Per-mode additions:
   A violation is a `Failure:` naming the fence and the files, never a workaround: there is no user to ask in autonomous mode, and the fix is a spec or plan change.
   The validator repeats the same checks independently on sections that declare Tools (see "Spec fences" in `validator-protocol.md`).
 - `fix`: Receives a `findings` JSON block matching the validator-protocol schema. Groups `block` and `warn` as must-fix; `info` is not fixed here (the orchestrator hands `info` to `finalize` for the commit body). A malformed findings block is a hard `Failure:`.
+- `finalize` with `Step: sweep`: commits the final sweep's fixes.
+  It stages the fixed files and the session summary (slug `goal-final-sweep`), leaves todo.md alone, and reports `TodoDelta: none`.
 - `finalize`: EXACTLY one commit per dispatch. No follow-ups, no fixups, no amends, no `--no-verify`. A pre-commit hook rejection is `Failure:`; do not retry, do not bypass. If an issue is discovered after commit, that's `Failure:` too. The orchestrator will not make a follow-up commit.
 - `bundled`: Runs `implement` then `finalize` inline. No validator handoff between them. Pre-validator legacy path.
 
@@ -111,7 +113,7 @@ The orchestrator and `/goal` evaluator parse these fields from the executor's re
 | `Commit:` | `<short-sha> <subject ≤80 chars>`. Exactly one commit per finalize dispatch, which is one per batch. The orchestrator VERIFIES against this SHA (never HEAD). |
 | `Push:` | `ok` or `failed: <reason>`. Any failure stops the loop. |
 | `Status:` | `clean`, or `dirty: <reason>` when files remain uncommitted after the commit. A dirty value is a self-reported contract violation; the orchestrator treats it as a Failure. |
-| `TodoDelta:` | Same as implement: one line per step checked off. |
+| `TodoDelta:` | Same as implement: one line per step checked off. `none` for a final sweep finalize (`Step: sweep`), which checks off no todo items. |
 | `Lessons:` | `added: <count>` or `none`. |
 | `Info-findings:` | `none` or the count appended to the commit body. |
 | `Blockers:` | Same as implement. |
@@ -157,7 +159,7 @@ Any check fails => `BPE rule violation: <details>`, echo RESUME, STOP. The exact
 
 ## Hard rules (shared with validator-protocol.md)
 
-- Executor `mode=fix` is the only mode that may start with a dirty tree.
+- Executor `mode=fix` is the only mode that may start with a dirty tree (a final sweep fix may also start clean).
 - Executor `mode=finalize` is the only mode that commits or pushes.
 - Every commit in the loop includes a new `.ai-sessions/session-*.md`.
 - Exactly one commit per finalize dispatch. No amends, no fixups, no `--no-verify`.
