@@ -63,6 +63,10 @@ goal.md carries only the condition, the read instruction, and the hard rules, so
 2. INTERRUPTION CHECK: last cold Agent dispatch (including a cold fallback) ended with no report block (limit pause, crash, kill)?
    Tree is untrusted: `git reset --hard && git clean -fd`; reset iter; redo the batch from mode=implement.
    A SendMessage continuation with no report block is not an interruption; it takes the step 4 cold fallback first, with no reset, because the tree carries the work.
+   FRESH-CONTEXT RESET: this context holds no recorded agent id (no implement dispatch for the current batch, and no sweep fix dispatch) and `git status --short` is non-empty at turn start?
+   Then the tree belongs to a batch this context did not run, which is what a CHECKPOINT resume after a non-finalize dispatch leaves.
+   Reset as above (`git reset --hard && git clean -fd`, uncheck the batch's steps, redo from mode=implement).
+   This never fires mid-batch, because the implement dispatch records its agent id in this context; a clean tree with no agent id is the normal start of a batch.
 3. Read first `- [ ]` in todo.md and resolve its batch per "Batch Line" (the steps sharing its batch name).
    None remain => run the final sweep per "Final Sweep" (full and section modes only), then run `<test-cmd>`, echo `git log origin/<branch>..HEAD`, stop.
    In section mode, "none remain" means no `- [ ]` remains under the named section; later sections may still hold unchecked items.
@@ -91,7 +95,43 @@ goal.md carries only the condition, the read instruction, and the hard rules, so
 7b. Finalize Failure with test output and iter<3 (a continuation `Failure: context exhausted` is not this case; it takes the step 4 cold fallback): build a finalize-test-failure block (see "Finalize-red recovery"), validate, dispatch mode=fix (iter+=1), resume.
    iter==3 or non-test failure => RESUME, STOP.
 8. Echo `git log -1 --format="%h %s"` and `git status --short`.
-   YOUR TURN ENDS.
+9. Checkpoint read: apply "### Checkpoint" to the latest `Context:` reading.
+   Under the thresholds, or no reading: YOUR TURN ENDS.
+   At a threshold: echo the CHECKPOINT block and STOP, without dispatching.
+
+### Checkpoint
+
+The `context-check` hook (`hooks/context-check.md`) injects a `Context: NN% of <window>` line after every `Agent` or `SendMessage` call, so warm fix and finalize continuations produce a reading too.
+After each dispatch, read the latest such line.
+Checkpoint when either holds:
+
+- NN >= 90 after a verified finalize (playbook step 7 passed).
+- NN >= 95 after any dispatch (implement, fix, validator, finalize, or sweep).
+
+To checkpoint, echo a block that starts `CHECKPOINT:` and holds the reading, the last commit (`git log -1 --format="%h %s"`), and the two commands to run next:
+
+```text
+CHECKPOINT: Context: NN% of <window>. Last commit: <sha> <subject>.
+Run /clear, then /goal @goal.md.
+```
+
+Then STOP: no dispatch, and no RESUME block, because a checkpoint is a pause and not a failure.
+Unlike a plain YOUR TURN ENDS, a STOP means the loop does not continue until the user runs the two commands.
+A finalize that failed verification is a RESUME stop, not a checkpoint; the 95 percent rule applies only after the playbook steps for that dispatch have passed.
+No reading (hook absent, failed open, or no `Context:` line yet) means no checkpoint.
+The reading covers the context up to the request that issued the call and excludes the returned report, and it can lag a further dispatch when Agent calls return asynchronously; the 5-point gap between the thresholds absorbs that.
+
+Resume is the existing path: `/clear`, then `/goal @goal.md`, which starts at the first `- [ ]`.
+`/clear` drops the recorded agent id, the per-batch iter, and the dispatch count, so the resume starts the current batch cold from `mode=implement`.
+A checkpoint at 95 percent after a non-finalize dispatch leaves a dirty tree.
+The fresh context holds no agent id, so the FRESH-CONTEXT RESET in Per Turn step 2 fires on that observable state (no agent id, non-empty `git status --short`), and nothing half-applied survives.
+A checkpoint during the final sweep after a sweep fix pass leaves the fixes uncommitted; the same reset drops them and the sweep reruns from iteration 1.
+A checkpoint after a verified finalize leaves a clean tree and loses nothing.
+After the last todo item, a checkpoint resumes into the final sweep, because no `- [ ]` remains (Per Turn step 3).
+The 50-completion cap counts completions in the current context; a resume restarts the count.
+CHECKPOINT is the one stop that is not a Failure, so the "any stop echoes RESUME" habit does not apply to it.
+
+On long arcs or tight credits, a checkpoint at a commit boundary loses nothing, so prefer resuming fresh over pushing past 90.
 
 ### RESUME
 
@@ -99,12 +139,14 @@ goal.md carries only the condition, the read instruction, and the hard rules, so
 - Fix root cause (code, hook, plan.md).
 - Clean tree: `git commit -S -F commit-msg.md` if commit failed; `git reset --hard && git clean -fd` if partial.
 - Mark todo.md `[x]` for any step you completed manually.
+- Commit manual work and any plan.md or plugin-file edits first, or discard them on purpose: a fresh `/goal @goal.md` treats any dirty tree as an interrupted batch and resets it.
 - Re-run: `/goal @goal.md` (picks up from first `- [ ]`).
 
 ### Hard Rules
 
 - SEQUENTIAL dispatches only.
-- Never /clear or /compact (kills the active /goal).
+- Never /clear or /compact except on CHECKPOINT (the user runs `/clear` after the block; the orchestrator itself never does).
+- On CHECKPOINT, echo the block and STOP.
 - Never commit on the subagent's behalf, even on Failure.
 - Stop after 50 successful step completions with "dispatch cap reached".
 
@@ -113,12 +155,14 @@ goal.md carries only the condition, the read instruction, and the hard rules, so
 A cold Agent dispatch (including a cold fallback) that ends without its report block (`Implement-Report`, `Fix-Report`, `Finalize-Report`, or a ```findings``` block) was interrupted: a usage-limit pause, a crash, or a killed subagent.
 The tree it leaves behind is untrusted; a half-applied edit is worse than no edit, because the next dispatch builds on it without knowing it is partial.
 A SendMessage continuation with no report block is not an interruption; it takes the cold fallback in the same mode first, with no reset.
+A dirty tree with no agent id recorded in the current context is treated the same way, because it is what a CHECKPOINT resume leaves behind (see "### Checkpoint").
 
 Recovery, run by the orchestrator at the start of the next turn, before anything else:
 
 1. `git reset --hard && git clean -fd`.
    This drops all uncommitted work, tracked and untracked, back to the last commit.
-   It is safe because `/bpe:goal` pre-flight refuses to start with a dirty tree, so everything uncommitted belongs to the interrupted batch.
+   It is safe when the tree started the run clean (`/bpe:goal` pre-flight refuses a dirty tree) and the user committed any manual work before re-running.
+   A `/goal @goal.md` re-run skips pre-flight, so the user-facing rule is commit first or discard on purpose; in a fresh context any uncommitted work is taken to belong to the interrupted batch.
    The batch's base commit is HEAD until finalize, so the reset drops the whole batch.
    Uncheck the batch's steps in `todo.md`.
 2. Reset the per-batch `iter` counter and drop the recorded agent id.
@@ -207,7 +251,7 @@ The validator emits one JSON object. Top-level keys:
 | `verdict` | string | yes | One of `"block"`, `"warn"`, `"clean"`. Consistency-checked against findings. |
 | `iter` | integer (>=1) | yes | The fix-loop iteration this report belongs to. Starts at 1. |
 | `findings` | list | yes | Zero or more finding objects. |
-| `notes` | string | no | Free-form orchestrator-facing context. |
+| `notes` | string | no | Free-form orchestrator-facing context. At most 80 words. |
 
 Each finding object:
 
@@ -215,11 +259,14 @@ Each finding object:
 |---|---|---|---|
 | `severity` | string | yes | One of `"block"`, `"warn"`, `"info"`. |
 | `file` | string | yes | Repo-relative path the finding applies to. |
-| `message` | string | yes | One-line description of the finding. |
+| `message` | string | yes | One-line description of the finding. At most 240 characters. |
 | `line` | integer (>=1) | no | Specific line number when known. |
 | `rule` | string | no | Short rule identifier like `"temporal.non-determinism"`. |
 | `suggested_fix` | string | no | Concrete fix the executor can apply. |
 | `reference` | string | no | URL or section pointer the user can follow. |
+
+`scripts/validate-findings.py` enforces both caps and exits 1 on a longer value.
+Detail beyond the cap belongs in `suggested_fix` or `reference`, not in `message` or `notes`.
 
 ### Example
 

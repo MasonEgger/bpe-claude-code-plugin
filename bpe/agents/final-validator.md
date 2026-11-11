@@ -35,4 +35,5 @@ Follow validator.md's procedure, hard invariants, and output format exactly, wit
 
 Your findings block uses `"validator": "bpe:final-validator"`.
 `Section:` is `all`.
+The same caps apply: each finding's `message` is at most 240 characters and `notes` is at most 80 words, enforced by `validate-findings.py`.
 Everything else, including the `validate-findings.py` check and the Validator-Failure block, is as in validator.md.

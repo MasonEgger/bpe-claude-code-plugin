@@ -52,15 +52,15 @@ These sections run in batch mode.
 
 ### Section 5: Checkpoint and report budget (#53)
 
-- [ ] Step 1: Add the context-check hook and register it
-  - [ ] hooks/context-check.py and .md; hooks/hooks.json; plugin.json; profile-check.json removed
-  - [ ] Verify: 95% and 19% synthetic readings; missing path silent exit 0; profile-check unaffected
-- [ ] Step 2: Act on the reading with a CHECKPOINT block
-  - [ ] `### Checkpoint` in the playbook; hard rules "except on CHECKPOINT"; Step 5 resume note
-  - [ ] Verify: render under 3000; plugin validate clean
-- [ ] Step 3: Enforce the report budget
-  - [ ] validate-findings.py caps; protocol schema rows; executor report budget; agent templates
-  - [ ] Verify: 241 chars and 81 words rejected; 240 and 80 accepted; protocol example passes
+- [x] Step 1: Add the context-check hook and register it
+  - [x] hooks/context-check.py and .md; hooks/hooks.json; plugin.json; profile-check.json removed
+  - [x] Verify: 95% and 19% synthetic readings; missing path silent exit 0; profile-check unaffected
+- [x] Step 2: Act on the reading with a CHECKPOINT block
+  - [x] `### Checkpoint` in the playbook; hard rules "except on CHECKPOINT"; Step 5 resume note
+  - [x] Verify: render under 3000; plugin validate clean
+- [x] Step 3: Enforce the report budget
+  - [x] validate-findings.py caps; protocol schema rows; executor report budget; agent templates
+  - [x] Verify: 241 chars and 81 words rejected; 240 and 80 accepted; protocol example passes
 
 ### Section 6: Comparison and release
 

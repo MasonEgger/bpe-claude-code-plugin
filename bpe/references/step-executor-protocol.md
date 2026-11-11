@@ -65,6 +65,7 @@ These hold regardless of mode. Violations abort the dispatch with `Failure:`.
   If done early, stop; the orchestrator re-dispatches.
 - **Branch check first.** `git rev-parse --abbrev-ref HEAD` before any work. Abort on `main` or `master`.
 - **Never `/clear` or `/compact`.** Would break the parent's `/goal` session.
+  CHECKPOINT is an orchestrator-only action; the executor never checkpoints, in any mode.
 - **No user questions.** There is no user in autonomous mode. Make the reasonable call, or abort with `Failure:` if a load-bearing decision is truly ambiguous.
 - **Always end with the mode's report block.** The `/goal` evaluator parses only the report from the parent transcript. No prose after the block.
 
@@ -123,6 +124,17 @@ The orchestrator and `/goal` evaluator parse these fields from the executor's re
 Same shape as `Finalize-Report`, minus the `Mode:` and `Info-findings:` rows. Emitted when the dispatch prompt had no `Mode:` line.
 
 `Step:`, `Files:`, `Tests:`, `Commit:`, `Push:`, `Status:`, `TodoDelta:`, `Lessons:`, `Blockers:`.
+
+### Report Budget
+
+The orchestrator and the `/goal` evaluator read the report from the parent transcript, so its size counts against the parent's context.
+
+- Report fields stay verbatim from the templates.
+- No prose outside the report block, before or after.
+- `Blockers:` and `Deferred:` are one line each.
+- Detail goes in the session summary, which the orchestrator never reads.
+
+The validator's findings block has matching caps (`message` 240 characters, `notes` 80 words), enforced by `scripts/validate-findings.py`; see "Findings schema (canonical)" in `validator-protocol.md`.
 
 ### Failure (any mode)
 

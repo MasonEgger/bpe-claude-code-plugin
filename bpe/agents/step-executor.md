@@ -109,6 +109,7 @@ Procedure:
 ## Return report templates
 
 End your turn with EXACTLY the block for your mode, with no prose after it. Field meanings live in `step-executor-protocol.md`.
+Report budget (all modes): `Blockers:` and `Deferred:` are one line each; detail goes in the session summary, which the orchestrator never reads.
 
 ### Mode: implement
 

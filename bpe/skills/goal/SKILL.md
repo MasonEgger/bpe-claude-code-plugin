@@ -117,9 +117,9 @@ SEQUENTIAL DISPATCHES ONLY. One Agent call per turn. BPE steps share todo.md, gi
 
 Each batch (a batch of one is a step) is EXACTLY ONE commit. No fixups, amends, or --no-verify. Every commit includes a new .ai-sessions/session-*.md. After a finalize dispatch, verify against the reported Commit SHA (NOT HEAD): git rev-parse HEAD equals it, the commit's file list holds a .ai-sessions/session-*.md, Tests shows exit 0. Any Failure (except a finalize test failure with iter<3: playbook 7b; or a continuation `context exhausted`: playbook 4 cold fallback) or rule violation => echo RESUME and STOP.
 
-Hard rules: SEQUENTIAL only. Never /clear or /compact (kills the active /goal). Never commit on the subagent's behalf, even on Failure. Stop after 50 successful step completions with "dispatch cap reached".
+Hard rules: SEQUENTIAL only. Never /clear or /compact except on CHECKPOINT. On CHECKPOINT, echo it and STOP. Never commit on the subagent's behalf, even on Failure. Stop after 50 successful step completions with "dispatch cap reached".
 
-RESUME: on any stop, echo the "### RESUME" block from the playbook verbatim.
+RESUME: on any stop except CHECKPOINT, echo the "### RESUME" block from the playbook verbatim.
 
 Mode: <mode>. Test: <test-cmd>. Branch: <branch>.
 ```
@@ -144,6 +144,7 @@ This command writes the `/goal` argument to disk; it does not execute it. The us
 The goal loop halts on any `Failure:` from a subagent or `BPE rule violation:` from the orchestrator, with two exceptions.
 A `mode=finalize` `Failure:` that carries failing test output and arrives with `iter < 3` re-enters the fix loop (playbook step 7b in `validator-protocol.md`) instead of halting, and only halts when `iter == 3` or the failure is not a test failure.
 A continuation `Failure: context exhausted` also does not halt; it takes the cold fallback (playbook step 4).
+A `CHECKPOINT:` block is a pause, not a failure: the orchestrator echoes it and STOPs; see "Resuming from a CHECKPOINT" below.
 The orchestrator playbook (`validator-protocol.md` "## Orchestrator Playbook") instructs the parent to echo its `### RESUME` block verbatim before stopping.
 That block is the recovery cheat-sheet; the paths below cover the common failure modes in more detail.
 
@@ -161,10 +162,22 @@ That block is the recovery cheat-sheet; the paths below cover the common failure
    - Session-summary missing on finalize verification: bug in the executor; fix the plugin file.
 3. **Restore a clean tree.** Two paths, depending on where the failure landed:
    - **Finalize-stage failure** (commit or push): the work is done. Commit or push it manually. `git commit -S -F commit-msg.md` if the commit was rejected; `git push` if only the push failed.
-   - **Implement- or fix-stage failure**: the work is partial and uncommitted. Either `git reset --hard && git clean -fd` to drop it (tracked edits and untracked leftovers both) and let the loop retry the step, or finish the step manually.
+   - **Implement- or fix-stage failure**: the work is partial and uncommitted. Either `git reset --hard && git clean -fd` to drop it (tracked edits and untracked leftovers both) and let the loop retry the step, or finish the step manually and commit it.
+   - **Edits to `plan.md` or a plugin file** made while fixing the root cause: commit them too, or discard them on purpose.
+     `/goal @goal.md` skips pre-flight, and a fresh context treats any dirty tree as an interrupted batch and resets it, which would discard the edits.
+     Do not rely on an exception for a context that still holds the batch's agent id; commit first.
 4. **Update `todo.md`.** Any step you completed manually needs its checkbox flipped to `- [x]` so the loop skips it on resume.
-5. **Re-run.** `/goal @goal.md` picks up from the first `- [ ]` in `todo.md`.
+5. **Re-run.** The tree must be clean first (see step 3). `/goal @goal.md` picks up from the first `- [ ]` in `todo.md`.
    The condition, mode, test command, and branch are baked into `goal.md`, and the playbook is read fresh each turn, so the resume is a single invocation.
+
+### Resuming from a CHECKPOINT
+
+When the playbook ends a turn with a `CHECKPOINT:` block, the context is nearly full and nothing is wrong.
+Run `/clear`, then `/goal @goal.md`.
+No regeneration is needed: goal.md carries the condition and the playbook is read fresh each turn.
+The tree must be clean or hold only the interrupted batch's work: commit any edit of your own first, because the fresh context resets every uncommitted change.
+The next run starts at the first `- [ ]`.
+A dirty tree from a mid-batch checkpoint is reset by the playbook's fresh-context reset (step 2: no recorded agent id and a non-empty `git status --short`), and the batch is redone from `mode=implement`.
 
 ### When to regenerate goal.md
 

@@ -8,6 +8,5 @@
   },
   "repository": "https://github.com/MasonEgger/bpe-claude-code-plugin",
   "license": "MIT",
-  "hooks": "./hooks/profile-check.json",
   "keywords": ["workflow", "tdd", "session-management", "autonomous-execution", "orchestration", "subagents", "development"]
 }

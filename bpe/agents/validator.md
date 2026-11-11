@@ -56,7 +56,9 @@ The dispatch prompt contains these fields. Parse them at the top of your turn:
    Emit these findings alongside the skill/MCP-sourced findings in the same block. If a linter fails to run (not installed, config missing), record the failure in `notes` and continue with the remaining linters; a linter that cannot run is not a hard failure.
 6. Review the diff against the spec fences first, then against the loaded guidance. For the fences: apply the two mechanical checks (`deps: frozen` and `paths:` against the `--name-only` list from step 3), then judge the prose Invariants, Non-goals, and Deferred entries against the diff, emitting findings with the severities and `rule` identifiers the protocol's "Spec fences" table assigns. For everything else, draft a finding with severity, file, message, and (when known) line, rule, suggested_fix, reference. Stay grounded: every finding must trace back to a specific rule from a consulted skill or MCP, or to a specific fence line in spec.md. Do not invent rules.
 7. Assemble the findings block per the schema in the protocol doc. Set `verdict` to the worst severity present (`block` if any block, `warn` if any warn and no block, `clean` otherwise).
-8. Validate the block. Pipe it through `${CLAUDE_PLUGIN_ROOT}/scripts/validate-findings.py`. If the script exits 0, use the canonical form it printed. If it exits 1, read the stderr message, fix the block, and retry once. A second failure is a Failure report (see below).
+8. Validate the block. Pipe it through `${CLAUDE_PLUGIN_ROOT}/scripts/validate-findings.py`. If the script exits 0, use the canonical form it printed. If it exits 1, read the stderr message, fix the block, and retry once.
+   The script enforces two caps: each finding's `message` is at most 240 characters, and `notes` is at most 80 words; put longer detail in `suggested_fix` or `reference`.
+   A second failure is a Failure report (see below).
 9. Return. Output the validated canonical findings block as the last content in your turn. No prose after it.
 
 ## Output format

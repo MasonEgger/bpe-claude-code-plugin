@@ -698,7 +698,7 @@ Four work items, each traceable to an issue, plus the version bump.
    - The goal condition in `/bpe:goal` Step 2 gains the clause "the final sweep returned clean" for full and section modes; step mode has no sweep.
    - `references/model-profiles.md` lists `final-validator` as an agent key and the 2026-11-09 tier map gains its row.
 3. **Context checkpoint and report budget (#53).**
-   - A new hook, `hooks/context-check.py`, registered on `PostToolUse` with matcher `Agent`, reads the hook input's `transcript_path`, sums `input_tokens`, `cache_read_input_tokens`, and `cache_creation_input_tokens` from the last assistant entry, divides by the window for that entry's `requestedModel` (1,000,000 when the id carries `[1m]`, else 200,000), and returns `additionalContext` reading `Context: NN% of <window>`.
+   - A new hook, `hooks/context-check.py`, registered on `PostToolUse` with matcher `Agent|SendMessage`, reads the hook input's `transcript_path`, sums `input_tokens`, `cache_read_input_tokens`, and `cache_creation_input_tokens` from the last assistant entry, divides by the window for that entry's `requestedModel` (1,000,000 when the id carries `[1m]`, else 200,000), and returns `additionalContext` reading `Context: NN% of <window>`.
      It fails open: unreadable transcript, missing fields, or any exception produce no output.
    - The orchestrator playbook reads that line after every dispatch.
      At 90 percent or more after a finalize (a commit boundary) or 95 percent or more after any dispatch, it echoes a `CHECKPOINT:` block naming `/clear` then `/goal @goal.md` and ends the turn without dispatching.
@@ -719,7 +719,7 @@ Four work items, each traceable to an issue, plus the version bump.
 - Decision: per-batch validation runs on `opus` and the final sweep is the one seat where Fable belongs, so the sweep is its own agent name rather than a flag on `validator` (profiles key on agent name).
 - Decision: the sweep runs on every full or section run, including all-`Tools: none` plans, because the #40 run's two weakly validated commits were in exactly such sections.
 - Decision: two checkpoint thresholds, 90 percent at a commit boundary and 95 percent anywhere, because a resume from a commit boundary costs nothing and a resume mid-batch redoes the batch.
-- Decision: the checkpoint hook is `PostToolUse` on `Agent`, since the orchestrator's turns in a `/goal` loop are Stop-hook driven and do not reliably fire `UserPromptSubmit`.
+- Decision: the checkpoint hook is `PostToolUse` on `Agent|SendMessage`, since the orchestrator's turns in a `/goal` loop are Stop-hook driven and do not reliably fire `UserPromptSubmit`.
 - Decision: no persisted loop state, no automatic `/clear`, no per-step commits inside a batch (all rejected 2026-11-03).
 
 ### Verification

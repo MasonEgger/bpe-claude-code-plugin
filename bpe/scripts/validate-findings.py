@@ -9,6 +9,10 @@ Usage:
     validate-findings.py FILE       # read JSON from FILE
     validate-findings.py -          # read JSON from stdin (explicit)
 
+Caps (a longer value is malformed, exit 1):
+    finding message  at most 240 characters (MAX_MESSAGE_CHARS)
+    top-level notes  at most 80 words (MAX_NOTES_WORDS)
+
 Exit codes:
     0  Input is well-formed; canonical JSON is written to stdout.
     1  Input is malformed; a human-readable error is written to stderr.
@@ -19,7 +23,7 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
-from typing import Any
+from typing import NoReturn
 
 SEVERITIES = frozenset({"block", "warn", "info"})
 VERDICTS = frozenset({"block", "warn", "clean"})
@@ -27,14 +31,31 @@ REQUIRED_TOP = frozenset({"validator", "verdict", "findings", "iter"})
 OPTIONAL_TOP = frozenset({"notes"})
 REQUIRED_FINDING = frozenset({"severity", "file", "message"})
 OPTIONAL_FINDING = frozenset({"line", "rule", "suggested_fix", "reference"})
+MAX_MESSAGE_CHARS = 240
+MAX_NOTES_WORDS = 80
 
 
-def fail(msg: str) -> None:
+def fail(msg: str) -> NoReturn:
+    """Write an error to stderr and exit 1.
+
+    Args:
+        msg: Human-readable description of the schema violation.
+    """
     sys.stderr.write(f"validate-findings: {msg}\n")
     sys.exit(1)
 
 
-def check_top(data: Any) -> dict[str, Any]:
+def check_top(data: object) -> dict[str, object]:
+    """Check the top-level object of a findings block.
+
+    Args:
+        data: The parsed JSON value.
+
+    Returns:
+        The same object, narrowed to a dict, when it is well-formed.
+        Exits 1 through `fail` otherwise, including when `notes` exceeds
+        `MAX_NOTES_WORDS` words.
+    """
     if not isinstance(data, dict):
         fail(f"top-level value must be a JSON object, got {type(data).__name__}")
     keys = set(data.keys())
@@ -54,10 +75,25 @@ def check_top(data: Any) -> dict[str, Any]:
         fail(f"findings: must be a list, got {type(data['findings']).__name__}")
     if "notes" in data and not isinstance(data["notes"], str):
         fail(f"notes: must be a string, got {type(data['notes']).__name__}")
+    if "notes" in data:
+        words = len(data["notes"].split())
+        if words > MAX_NOTES_WORDS:
+            fail(f"notes: {words} words exceeds the {MAX_NOTES_WORDS}-word cap")
     return data
 
 
-def check_finding(idx: int, f: Any) -> None:
+def check_finding(idx: int, f: object) -> None:
+    """Check one finding object.
+
+    Args:
+        idx: Position of the finding in the `findings` list, used in errors.
+        f: The parsed finding value.
+
+    Returns:
+        None when the finding is well-formed. Exits 1 through `fail`
+        otherwise, including when `message` exceeds `MAX_MESSAGE_CHARS`
+        characters.
+    """
     prefix = f"findings[{idx}]"
     if not isinstance(f, dict):
         fail(f"{prefix}: must be an object, got {type(f).__name__}")
@@ -77,6 +113,11 @@ def check_finding(idx: int, f: Any) -> None:
         fail(f"{prefix}.file: must be a non-empty string")
     if not isinstance(f["message"], str) or not f["message"]:
         fail(f"{prefix}.message: must be a non-empty string")
+    if len(f["message"]) > MAX_MESSAGE_CHARS:
+        fail(
+            f"{prefix}.message: {len(f['message'])} characters exceeds the "
+            f"{MAX_MESSAGE_CHARS}-character cap"
+        )
     if "line" in f and (
         not isinstance(f["line"], int) or isinstance(f["line"], bool) or f["line"] < 1
     ):
@@ -86,8 +127,29 @@ def check_finding(idx: int, f: Any) -> None:
             fail(f"{prefix}.{opt}: must be a string, got {type(f[opt]).__name__}")
 
 
-def check_consistency(data: dict[str, Any]) -> None:
-    severities = [f["severity"] for f in data["findings"]]
+def finding_items(data: dict[str, object]) -> list[dict[str, object]]:
+    """Return the findings of a validated block as a typed list.
+
+    Args:
+        data: A top-level object already accepted by `check_top` and whose
+            findings all passed `check_finding`.
+
+    Returns:
+        The `findings` list, narrowed to a list of dicts.
+    """
+    findings = data["findings"]
+    if not isinstance(findings, list):
+        fail("findings: must be a list")
+    return [f for f in findings if isinstance(f, dict)]
+
+
+def check_consistency(data: dict[str, object]) -> None:
+    """Check that the verdict matches the worst finding severity.
+
+    Args:
+        data: A top-level object already accepted by `check_top`.
+    """
+    severities = [f["severity"] for f in finding_items(data)]
     has_block = "block" in severities
     has_warn = "warn" in severities
     verdict = data["verdict"]
@@ -108,15 +170,24 @@ def check_consistency(data: dict[str, Any]) -> None:
         )
 
 
-def canonicalize(data: dict[str, Any]) -> dict[str, Any]:
-    canon: dict[str, Any] = {
+def canonicalize(data: dict[str, object]) -> dict[str, object]:
+    """Rebuild a validated block with keys in canonical order.
+
+    Args:
+        data: A block that passed every check.
+
+    Returns:
+        A new dict with top-level and finding keys in schema order.
+    """
+    canon_findings: list[dict[str, object]] = []
+    canon: dict[str, object] = {
         "validator": data["validator"],
         "verdict": data["verdict"],
         "iter": data["iter"],
-        "findings": [],
+        "findings": canon_findings,
     }
-    for f in data["findings"]:
-        cf: dict[str, Any] = {"severity": f["severity"], "file": f["file"]}
+    for f in finding_items(data):
+        cf: dict[str, object] = {"severity": f["severity"], "file": f["file"]}
         if "line" in f:
             cf["line"] = f["line"]
         if "rule" in f:
@@ -126,7 +197,7 @@ def canonicalize(data: dict[str, Any]) -> dict[str, Any]:
             cf["suggested_fix"] = f["suggested_fix"]
         if "reference" in f:
             cf["reference"] = f["reference"]
-        canon["findings"].append(cf)
+        canon_findings.append(cf)
     if "notes" in data:
         canon["notes"] = data["notes"]
     return canon
