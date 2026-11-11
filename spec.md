@@ -652,3 +652,91 @@ Five work items, each traceable to an issue.
 
 - No batch mode, final sweep, or checkpoint work (0.7.3).
 - No change to the review page's generation path (0.7.5, #17).
+
+## 0.7.3 Loop Efficiency (2026-11-10, requested)
+
+The second of the four patch releases triaged on 2026-11-03.
+It covers #51 batch mode, #52 the end-of-run final sweep, and #53 the 95 percent context checkpoint with a report budget, which together implement the agreed parts of #40.
+The baseline it must beat is recorded in `.ai-sessions/research/baseline-0.7.2-goal-run.md`: the 0.7.2 run spent 42 dispatches and 89 subagent minutes on 12 steps, finalize dispatches alone took 27 percent of subagent time, and the orchestrator's own turns read more tokens than all 42 subagents combined.
+
+### Goal
+
+Cut dispatches, wall-clock, and tokens per plan without lowering the validator's bar.
+Four work items, each traceable to an issue, plus the version bump.
+
+0. **Free the playbook headroom (prerequisite).**
+   The rendered `goal.md` argument sits at 3978 of `/goal`'s 4000-character cap, and items 1 and 3 both add to it.
+   Move the orchestrator's per-turn procedure out of `skills/goal/SKILL.md` Step 3 into a new `## Orchestrator playbook` section of `references/validator-protocol.md`, which the playbook already tells the orchestrator to read once per turn.
+   The `goal.md` text keeps the condition, the read instruction, the hard rules (sequential, one commit per unit, SHA verification, RESUME, dispatch cap), and the `Mode:` line, and must render under 3000 characters so later releases have room.
+   `/bpe:goal` Step 3's cap check stays and the count it prints is the real rendered length.
+1. **Batch mode (#51).**
+   - `/bpe:plan` writes batch boundaries into plan.md: a `**Batch:**` line under each section heading, after the Tools block, reading `<name>` for a batch of the section's steps or `single` to keep the per-step loop.
+     Default is one section per batch, split into `<section>-a`, `<section>-b` when the section exceeds 4 steps or its steps' stated scope exceeds about 400 changed lines.
+     `/bpe:plan` documents the sizing rule and the `single` override; `/bpe:review` shows the boundaries as decision units.
+   - The executor stays warm across a batch.
+     One `mode=implement` dispatch does every step in the batch in order, running the step's Verify (or `<test-cmd>`) and the spec-fence self-check after each step before starting the next, and checking off each step in todo.md as it lands.
+     Its `Implement-Report` carries one `TodoDelta:` line per step and a `Batch:` field naming the batch.
+   - Fix and finalize continue the same agent through `SendMessage` on the agent id the implement dispatch returned, so the agent that wrote the code also fixes and commits it.
+     When the continuation fails or returns no report block (agent gone, context exhausted), the orchestrator falls back to a cold dispatch in the same mode; the tree carries the work, so nothing is lost.
+   - The validator runs cold, once per batch, over the batch's whole diff (`git diff HEAD`), judging against the section's Tools block.
+     The fix cap is 3 iterations per batch.
+   - One commit per batch.
+     The commit subject names the batch; the body lists each step's subject line; the session summary covers the batch.
+     The orchestrator verifies the commit against the reported SHA exactly as today.
+   - Interrupted-dispatch recovery is unchanged in mechanism (`git reset --hard && git clean -fd`), because HEAD is still the batch's base commit until finalize; the orchestrator unchecks any todo.md step the interrupted batch had checked (the reset does that, since todo.md is tracked) and redoes the batch from `mode=implement`.
+   - `references/step-executor-protocol.md` replaces "One step per invocation" with "One batch per invocation; a batch of one is a step", and the mode table gains the warm-continuation rows.
+     "Exactly one commit per finalize" stays as written; it now applies per batch.
+2. **End-of-run final sweep (#52).**
+   - A new agent, `agents/final-validator.md`, with frontmatter `model: opus`, so a profile can pin its seat separately from `validator` (Mason's profile sets Fable).
+     Its body is the validator protocol with three differences: the diff source is `git diff $(git merge-base main HEAD)..HEAD`, the Tools it consults are the union of every section's Tools block plus the spec fences, and it runs even when every section declared `Tools: none`.
+   - The orchestrator dispatches it once after the last todo item finalizes and before declaring the goal met.
+     Its findings go through `validate-findings.py` like any other.
+   - block or warn findings dispatch the executor `mode=fix` with the findings, then the final validator again, under the same 3-iteration cap.
+     A clean verdict makes no commit.
+     An eventually clean sweep that made fixes ends with one `mode=finalize` dispatch whose `Step:` reads `sweep` and whose commit subject is "Apply final sweep fixes"; `TodoDelta:` reads `none`.
+     Block or warn at the cap is `Failure:` with the unresolved findings echoed and RESUME.
+   - The goal condition in `/bpe:goal` Step 2 gains the clause "the final sweep returned clean" for full and section modes; step mode has no sweep.
+   - `references/model-profiles.md` lists `final-validator` as an agent key and the 2026-11-09 tier map gains its row.
+3. **Context checkpoint and report budget (#53).**
+   - A new hook, `hooks/context-check.py`, registered on `PostToolUse` with matcher `Agent`, reads the hook input's `transcript_path`, sums `input_tokens`, `cache_read_input_tokens`, and `cache_creation_input_tokens` from the last assistant entry, divides by the window for that entry's `requestedModel` (1,000,000 when the id carries `[1m]`, else 200,000), and returns `additionalContext` reading `Context: NN% of <window>`.
+     It fails open: unreadable transcript, missing fields, or any exception produce no output.
+   - The orchestrator playbook reads that line after every dispatch.
+     At 90 percent or more after a finalize (a commit boundary) or 95 percent or more after any dispatch, it echoes a `CHECKPOINT:` block naming `/clear` then `/goal @goal.md` and ends the turn without dispatching.
+     Resume is the existing path: the first `- [ ]` in todo.md, with a dirty tree treated as an interrupted dispatch.
+   - "Never `/clear` or `/compact`" in `skills/goal/SKILL.md`, `references/step-executor-protocol.md`, and the playbook becomes "only on CHECKPOINT", with one paragraph on long arcs and tight credits.
+   - Report budget: the report block fields are unchanged and stay verbatim; prose outside the block is forbidden; `Blockers:` and `Deferred:` are one line each; the validator's `notes` field is capped at 80 words and each finding's `message` at 240 characters.
+     `validate-findings.py` enforces the two validator caps; the executor caps are protocol text plus the agent templates.
+4. **Measurement (#51 acceptance).**
+   - Land the baseline script as `scripts/goal-run-report.py`: given a session transcript path, it prints the per-dispatch table and the kind totals from the baseline note, using the same arithmetic.
+   - After batch mode lands, run this release's own remaining plan in batch mode and record the comparison in `.ai-sessions/research/batch-mode-comparison.md`: dispatches, subagent minutes, subagent and orchestrator cache-read tokens, and warn rate per first-pass validation, against the baseline.
+5. **Version bump** to 0.7.3.
+
+### Design decisions (proposed, confirm at review)
+
+- Decision: batch boundaries are plan-time and section-shaped; the orchestrator never regroups at run time (2026-11-03).
+- Decision: the warm executor continues through `SendMessage`, with a cold dispatch in the same mode as the fallback; the alternative, a fresh dispatch per mode, is exactly the cost the baseline measures.
+- Decision: the batch validator stays cold and independent of the author; only the executor is warm.
+- Decision: per-batch validation runs on `opus` and the final sweep is the one seat where Fable belongs, so the sweep is its own agent name rather than a flag on `validator` (profiles key on agent name).
+- Decision: the sweep runs on every full or section run, including all-`Tools: none` plans, because the #40 run's two weakly validated commits were in exactly such sections.
+- Decision: two checkpoint thresholds, 90 percent at a commit boundary and 95 percent anywhere, because a resume from a commit boundary costs nothing and a resume mid-batch redoes the batch.
+- Decision: the checkpoint hook is `PostToolUse` on `Agent`, since the orchestrator's turns in a `/goal` loop are Stop-hook driven and do not reliably fire `UserPromptSubmit`.
+- Decision: no persisted loop state, no automatic `/clear`, no per-step commits inside a batch (all rejected 2026-11-03).
+
+### Verification
+
+- `/bpe:goal` renders `goal.md` under 3000 characters with the playbook moved, and the orchestrator still finds every per-turn rule in `validator-protocol.md`.
+- `/bpe:plan` on a 6-step section writes two batches; `**Batch:** single` on a section yields per-step dispatches in a dry run of the playbook.
+- A 3-step batch produces one implement dispatch, one validator dispatch, one commit whose body lists three steps, three checked todo lines, and a SHA that verifies.
+- Killing the warm agent between implement and finalize makes the orchestrator fall back to a cold `mode=finalize` that commits the same tree.
+- The final validator on a branch with a planted invariant violation returns a `block` finding that passes `validate-findings.py`; a clean branch returns `clean` and makes no commit.
+- `hooks/context-check.py` fed a transcript whose last assistant entry sums to 190,000 tokens on a 200,000 window prints `Context: 95% of 200000`; fed a missing path it prints nothing and exits 0.
+- `validate-findings.py` rejects a finding with a 241-character `message` and a block whose `notes` exceeds 80 words.
+- `scripts/goal-run-report.py` on the 0.7.2 session reproduces the baseline table.
+- `plugin.json` version is 0.7.3.
+
+### Non-goals for this package
+
+- No `/bpe:init`, issue format, or `/bpe:new-issue` (0.7.4).
+- No change to the review renderer (0.7.5, #17).
+- No sweep from `/bpe:execute-plan`; interactive mode is unchanged.
+- No orchestrator-side regrouping, no persisted loop state, no automatic `/clear`.
