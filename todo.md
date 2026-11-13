@@ -64,8 +64,8 @@ These sections run in batch mode.
 
 ### Section 6: Comparison and release
 
-- [ ] Step 1: Record the batch-mode comparison
-  - [ ] Run goal-run-report.py over the Phase 2 span; write batch-mode-comparison.md
-- [ ] Step 2: Bump the plugin version to 0.7.3
-  - [ ] plugin.json version -> 0.7.3
-  - [ ] Verify: manifest reads 0.7.3; plugin validate clean
+- [x] Step 1: Record the batch-mode comparison
+  - [x] Run goal-run-report.py over the Phase 2 span; write batch-mode-comparison.md
+- [x] Step 2: Bump the plugin version to 0.7.3
+  - [x] plugin.json version -> 0.7.3
+  - [x] Verify: manifest reads 0.7.3; plugin validate clean
