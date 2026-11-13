@@ -109,7 +109,7 @@ flowchart TD
     E --> F["Agent(bpe:step-executor mode=implement)<br/>fresh context, work left uncommitted"]
     F --> G{"Section's Tools<br/>block declares<br/>validators?"}
     G -->|yes| H["Agent(bpe:validator)<br/>read-only, consults declared<br/>skills/MCPs/linters + the spec's fences"]
-    H -->|"block/warn, iter < 3"| I["Agent(bpe:step-executor mode=fix)"]
+    H -->|"block/warn, under the cap"| I["Agent(bpe:step-executor mode=fix)"]
     I --> H
     G -->|no| J["Agent(bpe:step-executor mode=finalize)<br/>session summary, single commit, push"]
     H -->|"clean or info-only"| J

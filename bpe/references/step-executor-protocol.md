@@ -48,10 +48,11 @@ Per-mode additions:
   A red Verify or a fence violation on any step is `Failure:` naming the step.
   Dirty tree at start aborts with `Failure:`.
   This signals either the prior batch did not finalize, or the orchestrator broke the SEQUENTIAL DISPATCHES rule.
-  The spec-fence self-check comes from `skills/execute-plan/SKILL.md` step 8 (Invariants `deps:` and `paths:` mechanically against `git diff HEAD --name-only`, then prose Invariants, Non-goals, and Deferred against the diff; sections absent from spec.md impose nothing).
+  The spec-fence self-check comes from `skills/execute-plan/SKILL.md` step 8 (Invariants `deps:` and `paths:` mechanically against `git diff HEAD --name-only` plus the untracked paths from `git status --short`, then prose Invariants, Non-goals, and Deferred against the diff; sections absent from spec.md impose nothing).
   A violation is a `Failure:` naming the fence and the files, never a workaround: there is no user to ask in autonomous mode, and the fix is a spec or plan change.
   The validator repeats the same checks independently on sections that declare Tools (see "Spec fences" in `validator-protocol.md`).
 - `fix`: Receives a `findings` JSON block matching the validator-protocol schema. Groups `block` and `warn` as must-fix; `info` is not fixed here (the orchestrator hands `info` to `finalize` for the commit body). A malformed findings block is a hard `Failure:`.
+  It records a tree id before its first edit and after its last, and reports the pair as `Delta: <base>..<head>`, so the next validator pass can read exactly what the fix changed (see "Validator passes" in `validator-protocol.md`).
 - `finalize` with `Step: sweep`: commits the final sweep's fixes.
   It stages the fixed files and the session summary (slug `goal-final-sweep`), leaves todo.md alone, and reports `TodoDelta: none`.
 - `finalize`: EXACTLY one commit per dispatch. No follow-ups, no fixups, no amends, no `--no-verify`. A pre-commit hook rejection is `Failure:`; do not retry, do not bypass. If an issue is discovered after commit, that's `Failure:` too. The orchestrator will not make a follow-up commit.
@@ -93,11 +94,12 @@ The orchestrator and `/goal` evaluator parse these fields from the executor's re
 |---|---|
 | `Mode:` | Value: `fix`. |
 | `Step:` | Same as implement. |
-| `Iter:` | Fix-loop iteration received from orchestrator (1 to 3). |
+| `Iter:` | Fix-loop iteration received from orchestrator (1 to 4): the number of the validator pass whose findings this fix applies. |
 | `Findings:` | Count received: `B block, W warn, I info`. |
 | `Applied:` | Count of block+warn findings actually fixed. |
 | `Deferred:` | `none` or `rule1: reason; rule2: reason` for findings that would not fix without breaking tests. |
 | `Tests:` | Command + exit `0` + result. Green mandatory. |
+| `Delta:` | `<base>..<head>`: two tree ids from the tree snapshot command in `agents/step-executor.md`, taken before the first edit and after the last. `none` when the command failed. The orchestrator passes the value to the next validator pass as `Fix delta:`. |
 | `Tree:` | Fixed value: `dirty`. |
 | `Ready:` | Fixed string `for re-validation`. |
 | `Blockers:` | Same as implement. |
@@ -147,7 +149,7 @@ Action:     <what was tried, what's needed next>
 
 Emitted the moment any invariant fires.
 The orchestrator stops the loop on any `Failure:` block, with two exceptions.
-A finalize test failure under the iteration cap re-enters the fix loop (playbook step 7b).
+A finalize test failure with `iter` under 3 re-enters the fix loop (playbook step 7b).
 A continuation `Failure: context exhausted` takes the cold fallback (playbook step 4).
 
 ## What the /goal evaluator must see

@@ -679,7 +679,8 @@ Four work items, each traceable to an issue, plus the version bump.
    - Fix and finalize continue the same agent through `SendMessage` on the agent id the implement dispatch returned, so the agent that wrote the code also fixes and commits it.
      When the continuation fails or returns no report block (agent gone, context exhausted), the orchestrator falls back to a cold dispatch in the same mode; the tree carries the work, so nothing is lost.
    - The validator runs cold, once per batch, over the batch's whole diff (`git diff HEAD`), judging against the section's Tools block.
-     The fix cap is 3 iterations per batch.
+     The base cap is 3 validator passes per batch, extended one pass at a time to a ceiling of 5 while the count of block and warn findings keeps dropping.
+     From the second pass on, the validator also receives the previous findings and the exact fix delta.
    - One commit per batch.
      The commit subject names the batch; the body lists each step's subject line; the session summary covers the batch.
      The orchestrator verifies the commit against the reported SHA exactly as today.
@@ -691,7 +692,7 @@ Four work items, each traceable to an issue, plus the version bump.
      Its body is the validator protocol with three differences: the diff source is `git diff $(git merge-base main HEAD)..HEAD`, the Tools it consults are the union of every section's Tools block plus the spec fences, and it runs even when every section declared `Tools: none`.
    - The orchestrator dispatches it once after the last todo item finalizes and before declaring the goal met.
      Its findings go through `validate-findings.py` like any other.
-   - block or warn findings dispatch the executor `mode=fix` with the findings, then the final validator again, under the same 3-iteration cap.
+   - block or warn findings dispatch the executor `mode=fix` with the findings, then the final validator again, under the same iteration cap.
      A clean verdict makes no commit.
      An eventually clean sweep that made fixes ends with one `mode=finalize` dispatch whose `Step:` reads `sweep` and whose commit subject is "Apply final sweep fixes"; `TodoDelta:` reads `none`.
      Block or warn at the cap is `Failure:` with the unresolved findings echoed and RESUME.

@@ -21,7 +21,7 @@ Follow validator.md's procedure, hard invariants, and output format exactly, wit
 ## When to invoke
 
 - **Sweep after the last batch.** Every todo item in scope (all of todo.md in full mode, the named section in section mode) is checked and committed; the orchestrator wants one whole-branch read before reporting the goal met.
-- **Re-check after sweep fixes.** An executor `mode=fix` pass addressed your earlier findings; the orchestrator dispatches you again with the next iteration number.
+- **Re-check after sweep fixes.** An executor `mode=fix` pass addressed your earlier findings; the orchestrator dispatches you again with the next iteration number, your previous findings, and the fix delta.
 
 ## Differences from bpe:validator
 

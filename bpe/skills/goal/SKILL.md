@@ -12,7 +12,7 @@ Set up a `/goal`-driven autonomous BPE run.
 The parent session orchestrates; each batch is executed by the `bpe:step-executor` subagent in modes (`implement`, optional `fix` loop, `finalize`).
 The executor runs per batch and stays warm across a batch's modes; the orchestrator continues it with `SendMessage`.
 A batch of one is a step.
-When the batch's plan.md section declares validators, `bpe:validator` runs cold between `implement` and `finalize` and the orchestrator drives the fix loop (max 3 iterations per batch) per `${CLAUDE_PLUGIN_ROOT}/references/validator-protocol.md`.
+When the batch's plan.md section declares validators, `bpe:validator` runs cold between `implement` and `finalize` and the orchestrator drives the fix loop (a base cap of 3 validator passes per batch, extended to at most 5 while the findings keep shrinking) per `${CLAUDE_PLUGIN_ROOT}/references/validator-protocol.md`.
 The parent transcript stays tiny; the `/goal` evaluator watches it for completion.
 
 **Requires Claude Code v2.1.139+.** Pairs well with `/auto`. The `/goal` command itself must still be run by the user; slash commands cannot invoke other slash commands programmatically, so this command writes the assembled `/goal` invocation to `goal.md` at the repo root and you paste it from there.
@@ -142,7 +142,7 @@ This command writes the `/goal` argument to disk; it does not execute it. The us
 ## Step 5: Resume Path on Failure
 
 The goal loop halts on any `Failure:` from a subagent or `BPE rule violation:` from the orchestrator, with two exceptions.
-A `mode=finalize` `Failure:` that carries failing test output and arrives with `iter < 3` re-enters the fix loop (playbook step 7b in `validator-protocol.md`) instead of halting, and only halts when `iter == 3` or the failure is not a test failure.
+A `mode=finalize` `Failure:` that carries failing test output and arrives with `iter < 3` re-enters the fix loop (playbook step 7b in `validator-protocol.md`) instead of halting, and only halts when `iter` is 3 or more or the failure is not a test failure.
 A continuation `Failure: context exhausted` also does not halt; it takes the cold fallback (playbook step 4).
 A `CHECKPOINT:` block is a pause, not a failure: the orchestrator echoes it and STOPs; see "Resuming from a CHECKPOINT" below.
 The orchestrator playbook (`validator-protocol.md` "## Orchestrator Playbook") instructs the parent to echo its `### RESUME` block verbatim before stopping.
@@ -156,7 +156,7 @@ That block is the recovery cheat-sheet; the paths below cover the common failure
      The playbook's interruption check (playbook step 2 in `validator-protocol.md`) resets the tree with `git reset --hard && git clean -fd` and redoes the item from `mode=implement` when the loop resumes.
      Half-finished dispatch work must never survive into the next dispatch; the commit is the only durable unit.
    - Tests red at implement-time: fix the code or the test.
-   - Validator blocks at iter 3: adjust the section's `**Tools:**` block in `plan.md`, or change the code the validator objected to.
+   - Validator still reports block or warn at the iteration cap: adjust the section's `**Tools:**` block in `plan.md`, or change the code the validator objected to.
    - Pre-commit hook rejects: fix the hook config, or fix the change so the hook passes.
    - Push fails on auth or upstream: resolve auth, or pull upstream and rebase.
    - Session-summary missing on finalize verification: bug in the executor; fix the plugin file.

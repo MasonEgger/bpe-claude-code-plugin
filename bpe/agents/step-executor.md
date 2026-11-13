@@ -61,14 +61,28 @@ Contract: dirty tree at start (do NOT run a clean-tree check; a final sweep fix 
 Procedure:
 
 1. Parse and validate findings. The orchestrator paste-includes a JSON block tagged `findings`. Pipe it through `${CLAUDE_PLUGIN_ROOT}/scripts/validate-findings.py`. Exit 1 => `Failure: orchestrator passed malformed findings` and stop.
+   Then record the fix base: run the tree snapshot command below, before your first edit, and keep the id it prints.
 2. Group findings. Separate `block` and `warn` (must fix) from `info` (record only; the orchestrator hands `info` to `mode=finalize` for the commit body; do not fix here).
 3. Apply fixes one at a time. For each block or warn finding:
    - Read the file and the surrounding context.
    - Apply the fix. Prefer the `suggested_fix` field when present and correct; use judgment when it is absent or wrong. Cite the finding's `rule` in your user-facing text.
    - Run the test suite. If red, fix forward within reason. If you can't make tests green within a handful of attempts on this finding, record it as deferred and continue with the next finding.
 4. Final test run after all fixes applied. Capture exit code and result. Tests MUST be green by end of dispatch; if they are not, return `Failure:` with the test output.
+   Then record the fix head: run the tree snapshot command again, after your last edit, and keep the second id.
 5. Branch re-check. `git rev-parse --abbrev-ref HEAD`. Abort on `main`/`master`. Echo.
 6. Emit the `Fix-Report` block (template below). List any deferred findings in the `Deferred:` field with each finding's rule and a one-line reason. Do not commit. Do not push.
+   Report the two ids as `Delta: <base>..<head>`, or `Delta: none` if either run failed or printed nothing.
+
+Tree snapshot command.
+It prints a tree id for the working tree, untracked files included, and changes neither the real index nor any file:
+
+```bash
+tmp="$(mktemp)" && cp "$(git rev-parse --git-path index)" "$tmp" && GIT_INDEX_FILE="$tmp" git add -A && GIT_INDEX_FILE="$tmp" git write-tree; rm -f "$tmp"
+```
+
+Run it from the repo root.
+The next validator pass turns the two ids into the exact fix delta with `git diff <base> <head>`.
+A failure here never fails the dispatch; it only costs the next validator pass its delta.
 
 ## Mode: finalize
 
@@ -137,6 +151,7 @@ Findings:   <count received: B block, W warn, I info>
 Applied:    <count fixed>
 Deferred:   <none | rule1: reason; rule2: reason>
 Tests:      <command> → <exit-code> (<short result>)
+Delta:      <<base-tree-id>..<head-tree-id> | none>
 Tree:       dirty
 Ready:      for re-validation
 Blockers:   <none | <one-line description>>
