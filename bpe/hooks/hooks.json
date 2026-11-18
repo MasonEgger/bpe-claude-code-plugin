@@ -1,0 +1,29 @@
+{
+  "description": "bpe hooks. profile-check (UserPromptSubmit): model-profile warning on /bpe:<name> invocations, body hooks/profile-check.py, docs hooks/profile-check.md. context-check (PostToolUse on Agent and SendMessage): reports context fill to the goal orchestrator, body hooks/context-check.py, docs hooks/context-check.md.",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/profile-check.py\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Agent|SendMessage",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/context-check.py\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

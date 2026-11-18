@@ -2,7 +2,7 @@
 
 A `UserPromptSubmit` command hook that warns when a `/bpe:<name>` invocation's profile-resolved model differs from the current session model.
 The hook body is `hooks/profile-check.py`; this file documents its behavior.
-The registered configuration lives in `hooks/profile-check.json` (referenced from `.claude-plugin/plugin.json` via its `hooks` field) and runs the script via `${CLAUDE_PLUGIN_ROOT}`.
+The registered configuration lives in `hooks/hooks.json`, alongside the context-check registration (Claude Code auto-discovers that path; `.claude-plugin/plugin.json` has no `hooks` field), and runs the script via `${CLAUDE_PLUGIN_ROOT}`.
 Resolution semantics are defined in `references/model-profiles.md`, the canonical schema doc for `.claude/bpe.local.md` profile files.
 
 ## Behavior

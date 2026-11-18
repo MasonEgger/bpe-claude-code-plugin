@@ -285,6 +285,16 @@ If the project-wide pool is empty (spec.md's `## Available tooling` lists no MCP
 
 If spec.md has no `## Available tooling` section at all (legacy spec), proceed as if every section declares `none`. Do not retroactively prompt the user; the user can re-run `/bpe:brainstorm` if they want validators on this project.
 
+## Batch Boundaries
+
+Decide how the goal loop groups steps into batches.
+The grammar for the `**Batch:**` line lives in `references/validator-protocol.md` under `## Batch Line`; do not restate it here.
+
+- Default to one section per batch.
+- Split a section into `-a` and `-b` batches when it has more than 4 steps, or when its steps' stated scope exceeds about 400 changed lines.
+- Mark a section `single` when its steps need a human check between them, or touch files a running loop depends on.
+- Batched sections declare Tools at section level only, since the batch validator judges the whole batch against one block.
+
 ## Output Format
 
 Store the plan in @plan.md with:
@@ -293,6 +303,7 @@ Store the plan in @plan.md with:
 - Implementation Guidelines section
 - Success Metrics section
 - The `**Tools:**` block immediately under each section heading
+- The `**Batch:**` line after each section's Tools block
 
 Also create a @todo.md that:
 - Mirrors the plan.md structure with checkboxes

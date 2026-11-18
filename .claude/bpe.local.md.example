@@ -33,7 +33,9 @@ profiles:
     # bpe/agents/<name>.md (`validator`, not `bpe:validator`).
     agents:
       # validator is omitted: its opus frontmatter default matches the 2026-11-09 map; per-batch
-      # adversarial review rides opus, and Fable returns in validation only at the final-sweep seat (0.7.3, #52).
+      # adversarial review rides opus, and Fable returns in validation only at the final-validator agent (0.7.3, #52).
+      # final-validator: the end-of-run sweep seat from the 2026-11-09 map (0.7.3, #52).
+      final-validator: claude-fable-5-1
       # step-executor is omitted: bounded execution rides the sonnet frontmatter default.
       # cheap-research is omitted: its frontmatter default is already sonnet.
   work:

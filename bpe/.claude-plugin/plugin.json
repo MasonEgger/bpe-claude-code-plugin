@@ -1,6 +1,6 @@
 {
   "name": "bpe",
-  "version": "0.7.2",
+  "version": "0.7.3",
   "description": "BPE (Brainstorm-Plan-Execute) development workflow: a permanent spec with invariants and deferred work, spec-driven TDD, autonomous multi-step runs with a validation gate, vendored rules for contributors, and cross-session continuity",
   "author": {
     "name": "Mason Egger",
@@ -8,6 +8,5 @@
   },
   "repository": "https://github.com/MasonEgger/bpe-claude-code-plugin",
   "license": "MIT",
-  "hooks": "./hooks/profile-check.json",
   "keywords": ["workflow", "tdd", "session-management", "autonomous-execution", "orchestration", "subagents", "development"]
 }

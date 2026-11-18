@@ -6,16 +6,23 @@ Executor-specific detail (mode-by-mode invariants, report field semantics, orche
 
 ## Roles
 
-1. `bpe:goal` (orchestrator). Owns the per-step state machine. Reads the per-section Tools block from `plan.md`. Dispatches the executor and the validator(s) in the right order. Enforces the iteration cap. Never commits, never edits files.
+1. `bpe:goal` (orchestrator). Owns the per-batch state machine.
+   Reads the per-section Tools block from `plan.md`.
+   Dispatches the executor and the validator(s) in the right order.
+   Enforces the iteration cap.
+   Never commits, never edits files.
 2. `bpe:step-executor` (worker). Three modes: `implement` (TDD, no commit), `fix` (apply validator findings, no commit), `finalize` (session summary, commit, push). Owns the commit transaction in `finalize` only.
 3. `bpe:validator` (QA). Read-only review of the uncommitted diff against MCPs and skills passed in by the orchestrator, and against the spec's fences (see "Spec fences" below). Emits a structured findings block. Never edits, never commits, never dispatches other agents.
+4. `bpe:final-validator` (end-of-run QA). Same read-only shape as `bpe:validator`, dispatched once after the last todo item finalizes, over the whole branch diff (see "Final Sweep"). Never edits, never commits, never dispatches other agents.
 
-## Per-step dispatch flow
+## Per-batch dispatch flow
 
-For each unchecked item in `todo.md` the orchestrator runs this state machine. Sequential dispatches only; never parallel.
+For each batch (a batch of one is a step) the orchestrator runs this state machine.
+A batch is the consecutive unchecked `todo.md` steps that share one batch name (see "Batch Line").
+Sequential dispatches only; never parallel.
 
 ```
-1. Dispatch step-executor (mode=implement)
+1. Dispatch step-executor (mode=implement) for the batch's steps
      => TDD; leaves work uncommitted; returns "ready for validation"
 
 2. Read the current section's Tools block (or legacy "Validator consults:") in plan.md.
@@ -23,39 +30,194 @@ For each unchecked item in `todo.md` the orchestrator runs this state machine. S
 
 3. iter = 1
 
-4. Dispatch validator(s) with the section's MCP and skill lists.
+4. Dispatch validator(s) cold, with the section's MCP and skill lists.
+     The validator reviews the batch's whole diff (git diff HEAD) against the section's Tools block.
      The validator also reads spec.md's fences itself; nothing is passed for that.
      Validator returns a findings block per the schema below.
      Orchestrator runs scripts/validate-findings.py on each block.
      A malformed block is a hard failure: stop the loop.
+     On iter >= 2 the dispatch also carries Previous findings and Fix delta (see "Validator passes").
 
 5. Inspect aggregated verdict:
      - verdict == "clean" or only "info" findings => go to step 6.
      - verdict in {"block", "warn"}:
-         - if iter == 3: stop the loop, surface unresolved findings as Failure.
-         - else: dispatch step-executor (mode=fix) with the findings; iter += 1; go to step 4.
+         - if the iteration cap stops the batch (see "Iteration cap"): stop the loop, surface unresolved findings as Failure.
+         - else: send mode=fix with the findings to the implement agent (SendMessage); iter += 1; go to step 4.
 
-6. Dispatch step-executor (mode=finalize)
+6. Send mode=finalize to the implement agent (SendMessage)
      => Final test run, session summary, commit message, single commit, push.
 ```
 
+Steps 5 and 6 continue the warm implement agent, which still holds the batch's context.
+A continuation falls back to a cold dispatch in the same mode on any of three triggers: a SendMessage error, a missing report block, or a continuation `Failure: context exhausted`.
+The tree carries the work, so nothing is lost and the tree is not reset.
+A cold dispatch that returns any `Failure:` follows the normal Failure rules.
+
+## Orchestrator Playbook
+
+The orchestrator reads this section at the start of every turn.
+goal.md carries only the condition, the read instruction, and the hard rules, so this section is the procedure.
+
+### Per Turn
+
+1. `git rev-parse --abbrev-ref HEAD`; abort if main/master.
+2. INTERRUPTION CHECK: last cold Agent dispatch (including a cold fallback) ended with no report block (limit pause, crash, kill)?
+   Tree is untrusted: `git reset --hard && git clean -fd`; reset iter; redo the batch from mode=implement.
+   A SendMessage continuation with no report block is not an interruption; it takes the step 4 cold fallback first, with no reset, because the tree carries the work.
+   FRESH-CONTEXT RESET: this context holds no recorded agent id (no implement dispatch for the current batch, and no sweep fix dispatch) and `git status --short` is non-empty at turn start?
+   Then the tree belongs to a batch this context did not run, which is what a CHECKPOINT resume after a non-finalize dispatch leaves.
+   Reset as above (`git reset --hard && git clean -fd`, uncheck the batch's steps, redo from mode=implement).
+   This never fires mid-batch, because the implement dispatch records its agent id in this context; a clean tree with no agent id is the normal start of a batch.
+3. Read first `- [ ]` in todo.md and resolve its batch per "Batch Line" (the steps sharing its batch name).
+   None remain => run the final sweep per "Final Sweep" (full and section modes only), then run `<test-cmd>`, echo `git log origin/<branch>..HEAD`, stop.
+   In section mode, "none remain" means no `- [ ]` remains under the named section; later sections may still hold unchecked items.
+4. Execute one state-machine step from this file against the current batch (turn 1 implement, optional turns 2..K validator + fix, final turn finalize).
+   Turn 1 dispatches implement for the whole batch with an Agent call and records the returned agent id.
+   Fix and finalize turns send to that id with SendMessage (load it first with ToolSearch `select:SendMessage`).
+   Fall back to a cold Agent dispatch in the same mode on a SendMessage error, a missing report block, or a continuation `Failure: context exhausted`.
+   A cold fallback's returned agent id replaces the recorded one.
+   A cold dispatch that returns any `Failure:` follows the normal Failure rules.
+   Track per-batch iter, each validator pass's block+warn count, and the agent id; reset all three when a new batch starts.
+5. For a validator dispatch: read the current section's `**Tools:**` block in plan.md (or legacy `**Validator consults:**` line).
+   If none or absent, skip validator and dispatch executor mode=finalize next turn.
+   Otherwise pass the section name and its Skills, MCPs, and Linters verbatim to bpe:validator with Iteration=iter and Diff source=`git diff HEAD`.
+   On iter>=2 also pass `Previous findings:` (the previous pass's validated block) and `Fix delta:` (the `Delta:` value from the latest Fix-Report, unless it is `none`); see "Validator passes".
+   After a finalize-red fix (step 7b) the pass before was clean, so `Previous findings:` is the synthesized finalize-test-failure block.
+   Pipe its ```findings``` block through `${CLAUDE_PLUGIN_ROOT}/scripts/validate-findings.py`; exit 1 => Failure (malformed output), stop.
+6. Verdict handling: clean OR only info => record a count of 0 for this pass; next turn dispatches finalize (carry info findings into the finalize prompt as "Info findings: <list>").
+   block/warn => record this pass's block+warn count, then apply "Iteration cap".
+   Under the cap (iter<3; or iter is 3 or 4 and the count is strictly lower than the previous pass's) => next turn sends mode=fix with the validated findings block to the implement agent (SendMessage, cold fallback per step 4); iter+=1.
+   At the cap (iter is 3 or 4 with no drop in the count; or iter==5) => Failure, echo unresolved findings, echo RESUME, STOP.
+7. For a finalize dispatch return: parse the Finalize-Report.
+   VERIFY against the reported SHA (NOT HEAD; HEAD is unreliable if anything raced):
+   a. git rev-parse HEAD must equal Commit-sha.
+   b. `git show --stat --name-only <sha> | grep -E '^\.ai-sessions/session-.*\.md$'` must be non-empty.
+   c. Tests field must indicate exit 0.
+   d. Every step of the batch has a `TodoDelta:` line and is checked off in todo.md.
+      A `Step: sweep` finalize skips this check (see "Final Sweep").
+   Any check fails => echo "BPE rule violation: <details>", echo RESUME, STOP.
+7b. Finalize Failure with test output and iter<3 (a continuation `Failure: context exhausted` is not this case; it takes the step 4 cold fallback): build a finalize-test-failure block (see "Finalize-red recovery"), validate, dispatch mode=fix (iter+=1), resume.
+   iter>=3 or non-test failure => RESUME, STOP.
+8. Echo `git log -1 --format="%h %s"` and `git status --short`.
+9. Checkpoint read: apply "### Checkpoint" to the latest `Context:` reading.
+   Under the thresholds, or no reading: YOUR TURN ENDS.
+   At a threshold: echo the CHECKPOINT block and STOP, without dispatching.
+
+### Checkpoint
+
+The `context-check` hook (`hooks/context-check.md`) injects a `Context: NN% of <window>` line after every `Agent` or `SendMessage` call, so warm fix and finalize continuations produce a reading too.
+After each dispatch, read the latest such line.
+Checkpoint when either holds:
+
+- NN >= 90 after a verified finalize (playbook step 7 passed).
+- NN >= 95 after any dispatch (implement, fix, validator, finalize, or sweep).
+
+To checkpoint, echo a block that starts `CHECKPOINT:` and holds the reading, the last commit (`git log -1 --format="%h %s"`), and the two commands to run next:
+
+```text
+CHECKPOINT: Context: NN% of <window>. Last commit: <sha> <subject>.
+Run /clear, then /goal @goal.md.
+```
+
+Then STOP: no dispatch, and no RESUME block, because a checkpoint is a pause and not a failure.
+Unlike a plain YOUR TURN ENDS, a STOP means the loop does not continue until the user runs the two commands.
+A finalize that failed verification is a RESUME stop, not a checkpoint; the 95 percent rule applies only after the playbook steps for that dispatch have passed.
+No reading (hook absent, failed open, or no `Context:` line yet) means no checkpoint.
+The reading covers the context up to the request that issued the call and excludes the returned report, and it can lag a further dispatch when Agent calls return asynchronously; the 5-point gap between the thresholds absorbs that.
+
+Resume is the existing path: `/clear`, then `/goal @goal.md`, which starts at the first `- [ ]`.
+`/clear` drops the recorded agent id, the per-batch iter, and the dispatch count, so the resume starts the current batch cold from `mode=implement`.
+A checkpoint at 95 percent after a non-finalize dispatch leaves a dirty tree.
+The fresh context holds no agent id, so the FRESH-CONTEXT RESET in Per Turn step 2 fires on that observable state (no agent id, non-empty `git status --short`), and nothing half-applied survives.
+A checkpoint during the final sweep after a sweep fix pass leaves the fixes uncommitted; the same reset drops them and the sweep reruns from iteration 1.
+A checkpoint after a verified finalize leaves a clean tree and loses nothing.
+After the last todo item, a checkpoint resumes into the final sweep, because no `- [ ]` remains (Per Turn step 3).
+The 50-completion cap counts completions in the current context; a resume restarts the count.
+CHECKPOINT is the one stop that is not a Failure, so the "any stop echoes RESUME" habit does not apply to it.
+
+On long arcs or tight credits, a checkpoint at a commit boundary loses nothing, so prefer resuming fresh over pushing past 90.
+
+### RESUME
+
+- Read the Failure or rule-violation reason above.
+- Fix root cause (code, hook, plan.md).
+- Clean tree: `git commit -S -F commit-msg.md` if commit failed; `git reset --hard && git clean -fd` if partial.
+- Mark todo.md `[x]` for any step you completed manually.
+- Commit manual work and any plan.md or plugin-file edits first, or discard them on purpose: a fresh `/goal @goal.md` treats any dirty tree as an interrupted batch and resets it.
+- Re-run: `/goal @goal.md` (picks up from first `- [ ]`).
+
+### Hard Rules
+
+- SEQUENTIAL dispatches only.
+- Never /clear or /compact except on CHECKPOINT (the user runs `/clear` after the block; the orchestrator itself never does).
+- On CHECKPOINT, echo the block and STOP.
+- Never commit on the subagent's behalf, even on Failure.
+- Stop after 50 successful step completions with "dispatch cap reached".
+
 ## Interrupted dispatches (usage limits, crashes)
 
-A dispatch that ends without its report block (`Implement-Report`, `Fix-Report`, `Finalize-Report`, or a ```findings``` block) was interrupted: a usage-limit pause, a crash, or a killed subagent. The tree it leaves behind is untrusted; a half-applied edit is worse than no edit, because the next dispatch builds on it without knowing it is partial.
+A cold Agent dispatch (including a cold fallback) that ends without its report block (`Implement-Report`, `Fix-Report`, `Finalize-Report`, or a ```findings``` block) was interrupted: a usage-limit pause, a crash, or a killed subagent.
+The tree it leaves behind is untrusted; a half-applied edit is worse than no edit, because the next dispatch builds on it without knowing it is partial.
+A SendMessage continuation with no report block is not an interruption; it takes the cold fallback in the same mode first, with no reset.
+A dirty tree with no agent id recorded in the current context is treated the same way, because it is what a CHECKPOINT resume leaves behind (see "### Checkpoint").
 
 Recovery, run by the orchestrator at the start of the next turn, before anything else:
 
-1. `git reset --hard && git clean -fd`. This drops all uncommitted work, tracked and untracked, back to the last commit. It is safe because `/bpe:goal` pre-flight refuses to start with a dirty tree, so everything uncommitted belongs to the interrupted step.
-2. Reset the per-step `iter` counter.
-3. Redo the current todo item from `mode=implement`, regardless of how far the state machine had progressed. Validator findings from before the interruption are stale; do not carry them forward.
+1. `git reset --hard && git clean -fd`.
+   This drops all uncommitted work, tracked and untracked, back to the last commit.
+   It is safe when the tree started the run clean (`/bpe:goal` pre-flight refuses a dirty tree) and the user committed any manual work before re-running.
+   A `/goal @goal.md` re-run skips pre-flight, so the user-facing rule is commit first or discard on purpose; in a fresh context any uncommitted work is taken to belong to the interrupted batch.
+   The batch's base commit is HEAD until finalize, so the reset drops the whole batch.
+   Uncheck the batch's steps in `todo.md`.
+2. Reset the per-batch `iter` counter and the per-pass finding counts, and drop the recorded agent id.
+3. Redo the current batch from `mode=implement`, regardless of how far the state machine had progressed.
+   Validator findings from before the interruption are stale; do not carry them forward.
 
 The commit is the only durable unit. Anything short of a verified finalize commit is disposable and gets rebuilt from the plan.
 
 ## Iteration cap
 
-Three round trips through the fix loop. If the validator still reports `block` or `warn` after the third executor `mode=fix` dispatch, the orchestrator stops the per-step loop and surfaces the unresolved findings as a `Failure:` block to the `/goal` evaluator. The user resolves manually.
+`iter` counts validator passes on a batch, starting at 1.
+A fix round follows each pass that reports `block` or `warn`, until the cap stops the batch.
+The cap exists to stop a loop that is making no progress, so it weighs whether the findings are shrinking as well as how many passes have run.
 
-`info` findings never trigger a fix loop. They land in the final commit message body: the orchestrator carries them into the finalize dispatch prompt as an `Info findings:` block (a finalize dispatch is a fresh context and cannot read earlier validator output), and the executor appends them to the commit message.
+- Base cap: 3 passes.
+  A pass with `iter` under 3 that reports `block` or `warn` always gets a fix round.
+- Convergence extension: a pass with `iter` of 3 or 4 that reports `block` or `warn` gets one more fix round only when its count of `block` and `warn` findings is strictly lower than the previous pass's count.
+- Ceiling: 5 passes.
+  A `block` or `warn` at pass 5 stops the batch whatever the counts.
+
+The orchestrator records each pass's count of `block` plus `warn` findings beside `iter` to apply the rule; `info` findings are never counted.
+A clean or info-only pass records 0.
+A synthesized finalize-test-failure block is not a validator pass and records no count.
+So a pass with `iter` of 3 or 4 that follows a finalize-red fix compares against the 0 of the clean pass before it, and any `block` or `warn` there stops the batch.
+Counts of 7, 2, 1 extend to a fourth pass.
+Counts of 1, 1, 2 stop at the third.
+
+When the cap stops the batch, the orchestrator surfaces the unresolved findings as a `Failure:` block to the `/goal` evaluator and echoes RESUME.
+The user resolves manually.
+
+`info` findings never trigger a fix loop.
+They land in the final commit message body: the orchestrator carries them into the finalize dispatch prompt as an `Info findings:` block (a cold finalize dispatch is a fresh context and cannot read earlier validator output; a warm continuation keeps its context, but the block is still passed so the commit body does not depend on it), and the executor appends them to the commit message.
+
+## Validator passes
+
+Every pass reports every `block` and `warn` finding the validator can find.
+A finding held back for a later pass costs a full fix round and one of the batch's few passes.
+
+A pass with `iter` of 2 or more is a re-check, and its dispatch carries two extra fields:
+
+- `Previous findings:` the validated findings block from the pass before.
+- `Fix delta:` the `Delta:` value from the latest Fix-Report, written `<base>..<head>`.
+  The two values are tree ids, and `git diff <base> <head>` shows exactly what that fix pass changed, untracked files included.
+  The field is left out when the report says `Delta: none`.
+
+After a finalize-red fix, the validator pass before it was clean, so `Previous findings:` holds the synthesized `finalize-test-failure` block.
+The validator never runs tests, so it does not try to confirm that finding resolved; it reads the fix delta and reviews the diff as usual.
+
+The validator is still cold and still reviews the whole diff.
+The two fields order its work: confirm that each earlier `block` and `warn` is resolved, read the fix delta for side effects of the fix, then review the rest.
+A fix adds new text and new rules, and a rule added by a fix can contradict a contract elsewhere; the delta puts those lines in front of the reviewer.
 
 ## Finalize-red recovery
 
@@ -70,9 +232,46 @@ The orchestrator synthesizes a findings block holding a single finding:
 - `message`: the failing test output trimmed to the failing assertion and the test name.
 - `file`: the failing test file when the output names one, else the plan section name.
 
-The orchestrator builds the block, pipes it through `scripts/validate-findings.py`, dispatches `step-executor mode=fix` with it, and then continues the normal validator -> finalize path.
-The finalize red consumes one fix-loop iteration, under the same 3-iteration cap as any other `block` finding.
-Halt the loop with RESUME only when `iter == 3`, or when the finalize `Failure:` is not a test failure (a commit rejection, a push rejection, or a missing session summary); those cases halt immediately.
+The orchestrator builds the block, pipes it through `scripts/validate-findings.py`, sends `step-executor mode=fix` with it to the implement agent (SendMessage, cold fallback per playbook step 4), and then continues the normal validator -> finalize path.
+The finalize red consumes one fix-loop iteration.
+It gets a fix round only under the base cap; the convergence extension does not apply, because the validator pass before a finalize was clean.
+Halt the loop with RESUME when `iter` is 3 or more, or when the finalize `Failure:` is not a test failure (a commit rejection, a push rejection, or a missing session summary); those cases halt immediately.
+A continuation `Failure: context exhausted` is neither case; it takes the playbook step 4 cold fallback.
+
+## Final Sweep
+
+The final sweep is one whole-branch review at the end of the run.
+It runs after the last todo item finalizes, in full and section modes, and never in step mode.
+In full mode the last item is the last `- [ ]` in todo.md; in section mode it is the last `- [ ]` under the named section, even when later sections still hold unchecked items.
+Per-batch review sees one batch's diff; the sweep catches what only shows across batches.
+
+Dispatch `bpe:final-validator` cold with these fields:
+
+- `Diff source:` `git diff $(git merge-base main HEAD)` (branch base against the working tree, so uncommitted fixes from a sweep `mode=fix` pass are visible), plus `git status --short` for untracked files, with `--name-only` for the fence checks.
+- `Iteration:` the sweep's own counter, starting at 1.
+- `Section:` `all`.
+
+The sweep runs even when every section declared `Tools: none`.
+Pipe its findings block through `scripts/validate-findings.py`; exit 1 is a Failure, as for any validator.
+
+Verdict handling:
+
+- Clean, or only `info`: no fix pass.
+  With no fixes made, there is no sweep commit.
+- `block` or `warn` under the cap: dispatch `step-executor` with `mode=fix` and the validated findings.
+  The dispatch is cold, because no warm agent spans the whole branch.
+  Then dispatch `bpe:final-validator` again with the iteration incremented and the re-check fields (`Previous findings:` and `Fix delta:`; see "Validator passes").
+- Clean after one or more fix passes: dispatch one `mode=finalize` with `Step: sweep`.
+  The subject is "Apply final sweep fixes" and `TodoDelta` is `none`.
+  Carry any `info` findings into that dispatch as an `Info findings:` block.
+  The orchestrator verifies that commit with playbook checks 7a to 7c.
+  Check 7d is skipped, because the sweep checks off no todo items.
+- `block` or `warn` at the cap: Failure with the unresolved findings, then RESUME.
+
+The sweep follows the same rule as a batch (see "Iteration cap"), with its own `iter` and its own per-pass counts.
+
+The first sweep `mode=fix` dispatch starts on a clean tree, because every batch is already committed.
+That is the one exception to the dirty-at-start fix contract; the dispatch still ends dirty.
 
 ## Severity guidance
 
@@ -92,7 +291,7 @@ The validator emits one JSON object. Top-level keys:
 | `verdict` | string | yes | One of `"block"`, `"warn"`, `"clean"`. Consistency-checked against findings. |
 | `iter` | integer (>=1) | yes | The fix-loop iteration this report belongs to. Starts at 1. |
 | `findings` | list | yes | Zero or more finding objects. |
-| `notes` | string | no | Free-form orchestrator-facing context. |
+| `notes` | string | no | Free-form orchestrator-facing context. At most 80 words. |
 
 Each finding object:
 
@@ -100,11 +299,14 @@ Each finding object:
 |---|---|---|---|
 | `severity` | string | yes | One of `"block"`, `"warn"`, `"info"`. |
 | `file` | string | yes | Repo-relative path the finding applies to. |
-| `message` | string | yes | One-line description of the finding. |
+| `message` | string | yes | One-line description of the finding. At most 240 characters. |
 | `line` | integer (>=1) | no | Specific line number when known. |
 | `rule` | string | no | Short rule identifier like `"temporal.non-determinism"`. |
 | `suggested_fix` | string | no | Concrete fix the executor can apply. |
 | `reference` | string | no | URL or section pointer the user can follow. |
+
+`scripts/validate-findings.py` enforces both caps and exits 1 on a longer value.
+Detail beyond the cap belongs in `suggested_fix` or `reference`, not in `message` or `notes`.
 
 ### Example
 
@@ -182,6 +384,19 @@ Plans written before 0.6.0 declare `**Validator consults:**` instead of `**Tools
 The validator and orchestrator honor the legacy block name: treat it as a Tools block declaring Skills and MCPs with an empty Linters list.
 New plans emit `**Tools:**` only.
 
+## Batch Line
+
+A plan section declares its batch in a `**Batch:** <name>` line, placed after the section's Tools block.
+`<name>` is kebab-case and unique in the plan.
+The literal `**Batch:** single` keeps the per-step loop for that section.
+A batch's steps are the consecutive todo.md steps that share one batch name.
+
+To split a section into several batches, name them `<name>-a`, `<name>-b`, and so on.
+Put each name on a per-step `**Batch:**` line placed under the `### Step` heading.
+A per-step line shadows the section line.
+
+A plan with no Batch lines (written before 0.7.3) runs every section as `single`.
+
 ## Tool-list propagation
 
 `bpe:brainstorm` enumerates available MCPs and skills, asks the user which apply to the project, and writes them to `spec.md` under `## Available tooling`. `bpe:plan` propagates that list per-section under `**Tools:**` (legacy plans: `**Validator consults:**`, per the transitional read above). `bpe:goal` reads the per-section block when dispatching the validator for a step in that section.
@@ -198,8 +413,8 @@ Checks and the findings they produce:
 
 | Fence | Check | Severity | `rule` |
 |---|---|---|---|
-| `- deps: frozen` | The diff touches a dependency manifest or lockfile (pyproject.toml, uv.lock, package.json, package-lock.json, Cargo.toml, Cargo.lock, go.mod, go.sum, or equivalents). Mechanical: `git diff HEAD --name-only`. | block | `spec.deps-frozen` |
-| `- paths: <glob>[, <glob>]` | A changed file matches none of the globs. Mechanical: `git diff HEAD --name-only` against the globs. | block | `spec.paths` |
+| `- deps: frozen` | The diff touches a dependency manifest or lockfile (pyproject.toml, uv.lock, package.json, package-lock.json, Cargo.toml, Cargo.lock, go.mod, go.sum, or equivalents). Mechanical: `git diff HEAD --name-only` plus the untracked paths from `git status --short`. | block | `spec.deps-frozen` |
+| `- paths: <glob>[, <glob>]` | A changed file matches none of the globs. Mechanical: `git diff HEAD --name-only` plus the untracked paths from `git status --short`, against the globs. | block | `spec.paths` |
 | Any other Invariants bullet | The diff violates the rule as written. Judged, grounded in the bullet's text. | block for a contract violation, warn for a pattern or style rule | `spec.invariant` |
 | A `## Non-goals` entry | The diff implements something listed there. Judged. | block | `spec.non-goal` |
 | A `**Deferred:**` entry | The diff implements something listed there. Judged. A scope leak, not a bonus: the fix is to remove it, or to promote the item into `## Goals` by a spec change. | warn | `spec.deferred` |
@@ -212,7 +427,7 @@ A section whose Tools block is `none` gets no validator dispatch and relies on t
 ## Hard rules
 
 - Validator never edits files, never commits, never dispatches other agents.
-- Executor `mode=fix` is the only mode that may start with a dirty tree.
+- Executor `mode=fix` is the only mode that may start with a dirty tree (a final sweep fix may also start clean).
 - Executor `mode=finalize` is the only mode that commits or pushes.
 - Orchestrator never commits, never edits, never bypasses the iteration cap.
 - All findings blocks pass through `scripts/validate-findings.py` before being acted on.

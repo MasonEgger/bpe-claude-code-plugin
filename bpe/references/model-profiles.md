@@ -58,7 +58,7 @@ Optional free-form context. Ignored by model resolution.
 - **`active_profile`** (string, required): names the profile that is live. Must match a key under `profiles:` for its overrides to take effect. Overridden by the `BPE_PROFILE` env var.
 - **`profiles`** (map, required): named profiles. Keys are user-chosen profile names (e.g. `personal`, `work`).
 - **`profiles.<name>.skills`** (map, optional): skill-name to model-value overrides. Keys are bare skill names as they appear in `bpe/skills/<name>/SKILL.md` (e.g. `brainstorm`, not `bpe:brainstorm`).
-- **`profiles.<name>.agents`** (map, optional): agent-name to model-value overrides. Keys are bare agent names as they appear in `bpe/agents/<name>.md` (e.g. `validator`, not `bpe:validator`).
+- **`profiles.<name>.agents`** (map, optional): agent-name to model-value overrides. Keys are bare agent names as they appear in `bpe/agents/<name>.md` (e.g. `validator`, not `bpe:validator`). The agents are `step-executor`, `validator`, `final-validator`, and `cheap-research`.
 
 Model values accept anything the SKILL.md `model:` field accepts: family aliases (`opus`, `sonnet`, `haiku`) or explicit model IDs (`claude-fable-5`).
 
@@ -125,7 +125,7 @@ This section is re-evaluated when a model generation ships or a recommendation p
 | review, apply-review | `opus` | Opus 5.5 is reliable again for decision review |
 | validator agent | `opus` | Per-batch adversarial review, and Opus 5.5 now holds the judgment it wants |
 | step-executor, execute-plan, cheap-research, and the mechanical skills | frontmatter defaults (`sonnet`) | Bounded execution against a decision-complete plan and fast lookups; the shipped sonnet tiers hold |
-| final-sweep seat (0.7.3, #52) | `claude-fable-5-1` | Where Fable returns in validation: one end-of-run sweep, not per-step review |
+| final-validator agent (end-of-run sweep) | `claude-fable-5-1` | Where Fable returns in validation: one end-of-run sweep, not per-step review |
 
 Why the unpin: Opus 5.5 proved reliable on bounded work, retiring the 2026-08-08 rollback to pinned Opus 4.8 (#37, #42).
 The direction now is to use Fable less and later: spec-shaping and the end-of-run sweep, not per-step execution or validation.

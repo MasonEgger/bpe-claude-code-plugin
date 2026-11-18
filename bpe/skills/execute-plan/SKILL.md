@@ -34,7 +34,9 @@ disable-model-invocation: true
    - Verify tests and linting pass and the program builds/runs
 
    Note: plan.md may mix Feature and Task steps within one plan. Honor whichever sub-step shape the current step declares; the numbered sub-steps ARE the procedure, regardless of template.
-8. **Check the diff against the spec's fences.** Read three parts of @spec.md, skipping any that is absent (specs written before they existed have none): `## Invariants`, `## Non-goals`, and the `**Deferred:**` list under `## Roadmap / phase log`. Then check `git diff HEAD --name-only` and the diff itself:
+8. **Check the diff against the spec's fences.**
+   Read three parts of @spec.md, skipping any that is absent (specs written before they existed have none): `## Invariants`, `## Non-goals`, and the `**Deferred:**` list under `## Roadmap / phase log`.
+   Then check `git diff HEAD --name-only` plus the untracked paths from `git status --short` (a new file counts as a changed one), and the diff itself:
    - `- deps: frozen`: the diff must not touch a dependency manifest or lockfile (pyproject.toml, uv.lock, package.json, package-lock.json, Cargo.toml, Cargo.lock, go.mod, go.sum, or their equivalents).
    - `- paths: <globs>`: every changed file must match one of the globs.
    - Every other Invariants bullet: read it and confirm the diff does not violate it.

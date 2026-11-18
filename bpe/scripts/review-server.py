@@ -13,6 +13,7 @@ import signal
 import subprocess
 import sys
 import threading
+import time
 import webbrowser
 from datetime import datetime
 from http import HTTPStatus
@@ -131,7 +132,28 @@ def kill_existing_server(pid_file: Path) -> None:
             file=sys.stderr,
             flush=True,
         )
+        wait_for_exit(old_pid)
     pid_file.unlink(missing_ok=True)
+
+
+def wait_for_exit(pid: int, timeout: float = 3.0) -> None:
+    """Block until pid is gone or timeout elapses.
+
+    The predecessor releases its port only once it has exited; binding before
+    that lands the new server one port down (8999 instead of 9000) even though
+    the old one is already dying. Polls with signal 0 every 50 ms.
+
+    Args:
+        pid: Process id to wait on.
+        timeout: Seconds to wait before giving up and proceeding anyway.
+    """
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            os.kill(pid, 0)
+        except (ProcessLookupError, PermissionError):
+            return
+        time.sleep(0.05)
 
 
 def write_pid_file(pid_file: Path) -> None:
@@ -636,11 +658,19 @@ def inject_save_script(html_text: str, artifact_path: str, feedback_name: str) -
     // is safe.
     var saveBtn = document.getElementById('bpe-save-btn');
     if (!saveBtn) return;
-    var cls = saveBtn.className || 'review-save';
+    var cls = (saveBtn.className || 'review-save') + ' review-save--recovery';
+    // All three buttons live in one .review-actions wrapper so the narrow-
+    // screen stylesheet can pin the group, not each button, to the bottom
+    // edge. Pinning each one separately stacked them on the same spot and
+    // Download JSON painted over Save.
+    var actions = document.createElement('div');
+    actions.className = 'review-actions';
+    saveBtn.parentNode.insertBefore(actions, saveBtn);
+    actions.appendChild(saveBtn);
     var markup =
       '<button type="button" id="bpe-copy-btn" class="' + cls + '">Copy JSON</button>' +
       '<button type="button" id="bpe-download-btn" class="' + cls + '">Download JSON</button>';
-    saveBtn.insertAdjacentHTML('afterend', markup);
+    actions.insertAdjacentHTML('beforeend', markup);
     var copyBtn = document.getElementById('bpe-copy-btn');
     var downloadBtn = document.getElementById('bpe-download-btn');
     copyBtn.addEventListener('click', function() {{ copyRecovery(copyBtn); }});
