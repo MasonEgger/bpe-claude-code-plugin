@@ -24,9 +24,9 @@ profiles:
     # Skills you leave out fall back to their frontmatter model: default,
     # so list only the overrides that differ.
     skills:
-      brainstorm: claude-fable-5-1       # spec-shaping: ambiguity wants the frontier
-      retrofit: claude-fable-5-1
-      plan: claude-fable-5-1
+      brainstorm: claude-fable-5-2       # spec-shaping: ambiguity wants the frontier
+      retrofit: claude-fable-5-2
+      plan: claude-fable-5-2
       # review and apply-review are omitted: their opus frontmatter default matches the 2026-11-09 map.
       # execute-plan is omitted: bounded execution rides the sonnet frontmatter default.
     # Agent overrides. Keys are bare agent names as they appear in
@@ -35,7 +35,7 @@ profiles:
       # validator is omitted: its opus frontmatter default matches the 2026-11-09 map; per-batch
       # adversarial review rides opus, and Fable returns in validation only at the final-validator agent (0.7.3, #52).
       # final-validator: the end-of-run sweep seat from the 2026-11-09 map (0.7.3, #52).
-      final-validator: claude-fable-5-1
+      final-validator: claude-fable-5-2
       # step-executor is omitted: bounded execution rides the sonnet frontmatter default.
       # cheap-research is omitted: its frontmatter default is already sonnet.
   work:
