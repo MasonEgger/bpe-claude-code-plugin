@@ -298,7 +298,7 @@ Each finding object:
 | Key | Type | Required | Notes |
 |---|---|---|---|
 | `severity` | string | yes | One of `"block"`, `"warn"`, `"info"`. |
-| `file` | string | yes | Repo-relative path the finding applies to. |
+| `file` | string | yes | Repo-relative path the finding applies to. A plan section name instead for `mcp-unavailable` findings, and for `finalize-test-failure` findings when the failing output names no test file. |
 | `message` | string | yes | One-line description of the finding. At most 240 characters. |
 | `line` | integer (>=1) | no | Specific line number when known. |
 | `rule` | string | no | Short rule identifier like `"temporal.non-determinism"`. |

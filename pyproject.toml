@@ -1,0 +1,22 @@
+[project]
+name = "bpe-claude-code-plugin"
+version = "0.1.0"
+requires-python = ">=3.11"  # matches the floor in the plugin scripts' PEP 723 headers
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "ruff",
+    "mypy",
+    "pytest",
+    "pytest-cov",
+]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "N", "UP", "B", "SIM", "C4", "TC"]
+
+[tool.mypy]
+strict = true
