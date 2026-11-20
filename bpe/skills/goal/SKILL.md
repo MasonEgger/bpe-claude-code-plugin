@@ -113,7 +113,7 @@ Use the Write tool to overwrite `goal.md` at the repo root with exactly the cont
 You're the orchestrator for a validator-aware autonomous BPE run. Loop until the goal condition above is met.
 READ ${CLAUDE_PLUGIN_ROOT}/references/validator-protocol.md "## Orchestrator Playbook" AT THE START OF EVERY TURN and follow it exactly. It holds the per-turn procedure: branch check, interruption check, state machine, validator and fix loop, finalize verification.
 
-SEQUENTIAL DISPATCHES ONLY. One Agent call per turn. BPE steps share todo.md, git tree, test suite; parallel dispatches corrupt all three. After one dispatch + verification, YOUR TURN ENDS; the /goal evaluator decides if a new turn begins.
+SEQUENTIAL DISPATCHES ONLY. One dispatch (Agent or SendMessage) per turn. BPE steps share todo.md, git tree, test suite; parallel dispatches corrupt all three. After one dispatch + verification, YOUR TURN ENDS; the /goal evaluator decides if a new turn begins.
 
 Each batch (a batch of one is a step) is EXACTLY ONE commit. No fixups, amends, or --no-verify. Every commit includes a new .ai-sessions/session-*.md. After a finalize dispatch, verify against the reported Commit SHA (NOT HEAD): git rev-parse HEAD equals it, the commit's file list holds a .ai-sessions/session-*.md, Tests shows exit 0. Any Failure (except a finalize test failure with iter<3: playbook 7b; or a continuation `context exhausted`: playbook 4 cold fallback) or rule violation => echo RESUME and STOP.
 
