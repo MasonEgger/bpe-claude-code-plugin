@@ -88,12 +88,16 @@ def main() -> None:
         if entry is None:
             return
         reading = context_reading(entry)
-        print(json.dumps({
-            "hookSpecificOutput": {
-                "hookEventName": "PostToolUse",
-                "additionalContext": reading,
-            }
-        }))
+        print(
+            json.dumps(
+                {
+                    "hookSpecificOutput": {
+                        "hookEventName": "PostToolUse",
+                        "additionalContext": reading,
+                    }
+                }
+            )
+        )
     except Exception:  # fail open on any input or output problem
         return
 

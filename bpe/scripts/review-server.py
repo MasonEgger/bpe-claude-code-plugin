@@ -10,6 +10,7 @@ import json
 import os
 import shutil
 import signal
+import socket
 import subprocess
 import sys
 import threading
@@ -39,8 +40,7 @@ def fail_bind(reason: str) -> NoReturn:
     """
     print(f"Cannot resolve the tailnet IPv4: {reason}.", file=sys.stderr)
     print(
-        "Pass --bind <address> to bind somewhere else "
-        "(e.g. --bind 127.0.0.1 to review locally).",
+        "Pass --bind <address> to bind somewhere else (e.g. --bind 127.0.0.1 to review locally).",
         file=sys.stderr,
     )
     sys.exit(1)
@@ -211,10 +211,7 @@ def validate_feedback(payload: object) -> str | None:
             if not isinstance(sec[field], str):
                 return f"sections[{i}].{field} must be a string."
         if sec["decision"] not in VALID_DECISIONS:
-            return (
-                f"sections[{i}].decision must be one of "
-                f"{sorted(VALID_DECISIONS)!r}; got {sec['decision']!r}."
-            )
+            return f"sections[{i}].decision must be one of {sorted(VALID_DECISIONS)!r}; got {sec['decision']!r}."
     gc = payload.get("global_comment", "")
     if not isinstance(gc, str):
         return "Payload.global_comment must be a string."
@@ -281,7 +278,8 @@ def make_handler(
             page = (
                 "<!doctype html><meta charset=utf-8>"
                 "<title>Saved</title>"
-                "<style>body{font-family:system-ui;max-width:40rem;margin:4rem auto;padding:0 1rem;line-height:1.5}</style>"
+                "<style>body{font-family:system-ui;max-width:40rem;margin:4rem auto;"
+                "padding:0 1rem;line-height:1.5}</style>"
                 "<h1>Saved</h1>"
                 "<p>Feedback recorded. You can close this tab.</p>"
                 "<p>Back in Claude Code, run <code>/bpe:apply-review</code> to load and apply your feedback.</p>"
@@ -316,6 +314,7 @@ def load_stylesheet() -> str:
     if not STYLESHEET.exists():
         return ""
     return f"\n<style>\n{STYLESHEET.read_text(encoding='utf-8')}\n</style>\n"
+
 
 RUNTIME_HELPERS = """
 <script>
@@ -698,8 +697,8 @@ def inject_save_script(html_text: str, artifact_path: str, feedback_name: str) -
 USAGE = (
     "Usage: review-server.py <html-path> <feedback-output-path> <source-markdown-path> "
     "[--bind <address>]\n"
-    "  --bind <address>   Force a specific bind address (e.g. 127.0.0.1 to skip the "
-    "Tailscale auto-bind when reviewing locally on a Tailscale-up machine)."
+    "  --bind <address>   Bind this address instead of the tailnet IPv4 (e.g. 127.0.0.1 "
+    "to review locally). Required when the tailnet address cannot be resolved."
 )
 
 
@@ -750,17 +749,21 @@ def bind_server(bind_addr: str, start_port: int = 9000, attempts: int = 50) -> H
         An HTTPServer bound to the first free port in the range.
 
     Raises:
-        SystemExit: Non-zero when no port in the range is free.
+        SystemExit: Non-zero when bind_addr does not resolve, or when no port
+            in the range is free.
     """
     for port in range(start_port, start_port - attempts, -1):
         try:
             return HTTPServer((bind_addr, port), BaseHTTPRequestHandler)
+        except socket.gaierror as error:
+            # A resolution failure is the same on every port; stop at the first.
+            print(f"Cannot resolve the bind address {bind_addr!r}: {error}.", file=sys.stderr)
+            sys.exit(1)
         except OSError:
             continue
     lowest_port = start_port - attempts + 1
     print(
-        f"No free port for the review server on {bind_addr} in range "
-        f"{lowest_port}-{start_port} ({attempts} attempts).",
+        f"No free port for the review server on {bind_addr} in range {lowest_port}-{start_port} ({attempts} attempts).",
         file=sys.stderr,
     )
     sys.exit(1)
@@ -791,12 +794,8 @@ def main() -> None:
     port = server.server_address[1]
     html_text = inject_head_assets(html_text)
     html_text = inject_runtime_helpers(html_text)
-    html_with_script = inject_save_script(
-        html_text, source_artifact, feedback_path.name
-    ).encode("utf-8")
-    server.RequestHandlerClass = make_handler(
-        html_with_script, feedback_path, source_artifact, shutdown_event
-    )
+    html_with_script = inject_save_script(html_text, source_artifact, feedback_path.name).encode("utf-8")
+    server.RequestHandlerClass = make_handler(html_with_script, feedback_path, source_artifact, shutdown_event)
 
     url = f"http://{bind_addr}:{port}/"
     # Write the URL to a well-known file so the /bpe:review command can surface

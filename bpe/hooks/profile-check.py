@@ -38,13 +38,13 @@ ADDITIONAL_CONTEXT = (
 )
 
 
-def profile_file_exists(cwd):
-    project = os.path.join(cwd, ".claude", "bpe.local.md") if cwd else None
+def profile_file_exists(cwd: str) -> bool:
+    project_exists = bool(cwd) and os.path.isfile(os.path.join(cwd, ".claude", "bpe.local.md"))
     user_global = os.path.expanduser("~/.claude/bpe.local.md")
-    return (project and os.path.isfile(project)) or os.path.isfile(user_global)
+    return project_exists or os.path.isfile(user_global)
 
 
-def main():
+def main() -> None:
     try:
         payload = json.load(sys.stdin)
     except (json.JSONDecodeError, ValueError):
@@ -54,12 +54,16 @@ def main():
         return
     if not profile_file_exists(payload.get("cwd") or ""):
         return
-    print(json.dumps({
-        "hookSpecificOutput": {
-            "hookEventName": "UserPromptSubmit",
-            "additionalContext": ADDITIONAL_CONTEXT.replace("<name>", match.group(1)),
-        }
-    }))
+    print(
+        json.dumps(
+            {
+                "hookSpecificOutput": {
+                    "hookEventName": "UserPromptSubmit",
+                    "additionalContext": ADDITIONAL_CONTEXT.replace("<name>", match.group(1)),
+                }
+            }
+        )
+    )
 
 
 if __name__ == "__main__":

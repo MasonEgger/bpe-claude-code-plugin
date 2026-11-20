@@ -45,10 +45,13 @@ import argparse
 import json
 import re
 import sys
-from collections.abc import Iterator
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 JsonObject = dict[str, object]
 
@@ -328,9 +331,7 @@ def subagent_usage(session: Path, agent_id: str) -> Usage:
     return usage
 
 
-def scan_parent(
-    session: Path, since: datetime | None, until: datetime | None
-) -> tuple[list[Dispatch], Usage]:
+def scan_parent(session: Path, since: datetime | None, until: datetime | None) -> tuple[list[Dispatch], Usage]:
     """Stream the parent transcript once for dispatches and orchestrator usage.
 
     Args:
@@ -380,9 +381,7 @@ def scan_parent(
                         target=get_str(tool_input, "to"),
                         continuation=True,
                     )
-                    dispatch.kind = classify_continuation(
-                        summary, get_str(tool_input, "message") or ""
-                    )
+                    dispatch.kind = classify_continuation(summary, get_str(tool_input, "message") or "")
                 else:
                     continue
                 dispatches.append(dispatch)
@@ -396,10 +395,10 @@ def scan_parent(
             for block in content_blocks(entry):
                 if get_str(block, "type") != "tool_result":
                     continue
-                dispatch = by_tool_use.get(get_str(block, "tool_use_id") or "")
-                if dispatch is not None and not dispatch.continuation:
-                    dispatch.agent_id = result_agent_id
-                    dispatch.model = get_str(result, "resolvedModel") or "unknown"
+                answered_dispatch = by_tool_use.get(get_str(block, "tool_use_id") or "")
+                if answered_dispatch is not None and not answered_dispatch.continuation:
+                    answered_dispatch.agent_id = result_agent_id
+                    answered_dispatch.model = get_str(result, "resolvedModel") or "unknown"
 
     return dispatches, orchestrator
 
@@ -473,19 +472,15 @@ def main(argv: list[str] | None = None) -> int:
     Returns:
         The process exit code.
     """
-    parser = argparse.ArgumentParser(
-        description="Report dispatch counts and token cost for a /bpe:goal run."
-    )
+    parser = argparse.ArgumentParser(description="Report dispatch counts and token cost for a /bpe:goal run.")
     parser.add_argument("session", type=Path, help="parent session transcript (.jsonl)")
     parser.add_argument(
         "--since",
-        help="inclusive lower bound, ISO 8601 UTC such as 2026-11-09T22:40:00Z "
-        "(no offset is read as UTC)",
+        help="inclusive lower bound, ISO 8601 UTC such as 2026-11-09T22:40:00Z (no offset is read as UTC)",
     )
     parser.add_argument(
         "--until",
-        help="inclusive upper bound, ISO 8601 UTC such as 2026-11-10T01:00:00Z "
-        "(no offset is read as UTC)",
+        help="inclusive upper bound, ISO 8601 UTC such as 2026-11-10T01:00:00Z (no offset is read as UTC)",
     )
     args = parser.parse_args(argv)
 
@@ -532,8 +527,18 @@ def main(argv: list[str] | None = None) -> int:
     ]
     print_table(
         [
-            "Start (UTC)", "Agent", "Model", "Kind", "Dispatch", "Min",
-            "Turns", "API responses", "Tools", "Cache-read", "Cache-create", "Output",
+            "Start (UTC)",
+            "Agent",
+            "Model",
+            "Kind",
+            "Dispatch",
+            "Min",
+            "Turns",
+            "API responses",
+            "Tools",
+            "Cache-read",
+            "Cache-create",
+            "Output",
         ],
         rows,
     )
@@ -560,15 +565,22 @@ def main(argv: list[str] | None = None) -> int:
         total_count += len(members)
         kind_rows.append(
             [
-                kind, f"{len(members):,}", f"{minutes:.1f}",
-                f"{cache_read:,}", f"{cache_create:,}", f"{output:,}",
+                kind,
+                f"{len(members):,}",
+                f"{minutes:.1f}",
+                f"{cache_read:,}",
+                f"{cache_create:,}",
+                f"{output:,}",
             ]
         )
     kind_rows.append(
         [
-            "all subagents", f"{total_count:,}",
+            "all subagents",
+            f"{total_count:,}",
             f"{sum(row_minutes(dispatch) for dispatch in dispatches):.1f}",
-            f"{total.cache_read:,}", f"{total.cache_create:,}", f"{total.output:,}",
+            f"{total.cache_read:,}",
+            f"{total.cache_create:,}",
+            f"{total.output:,}",
         ]
     )
     print_table(

@@ -46,7 +46,7 @@ def fail(msg: str) -> NoReturn:
 
 
 def check_top(data: object) -> dict[str, object]:
-    """Check the top-level object of a findings block.
+    """Check the top-level object of a findings block and each finding in it.
 
     Args:
         data: The parsed JSON value.
@@ -54,7 +54,7 @@ def check_top(data: object) -> dict[str, object]:
     Returns:
         The same object, narrowed to a dict, when it is well-formed.
         Exits 1 through `fail` otherwise, including when `notes` exceeds
-        `MAX_NOTES_WORDS` words.
+        `MAX_NOTES_WORDS` words or a finding fails `check_finding`.
     """
     if not isinstance(data, dict):
         fail(f"top-level value must be a JSON object, got {type(data).__name__}")
@@ -79,6 +79,10 @@ def check_top(data: object) -> dict[str, object]:
         words = len(data["notes"].split())
         if words > MAX_NOTES_WORDS:
             fail(f"notes: {words} words exceeds the {MAX_NOTES_WORDS}-word cap")
+
+    # Check each finding here, where `findings` is known to be a list.
+    for finding_index, finding in enumerate(data["findings"]):
+        check_finding(finding_index, finding)
     return data
 
 
@@ -105,22 +109,14 @@ def check_finding(idx: int, f: object) -> None:
     if unknown:
         fail(f"{prefix}: unknown keys: {sorted(unknown)}")
     if f["severity"] not in SEVERITIES:
-        fail(
-            f"{prefix}.severity: expected one of {sorted(SEVERITIES)}, "
-            f"got {f['severity']!r}"
-        )
+        fail(f"{prefix}.severity: expected one of {sorted(SEVERITIES)}, got {f['severity']!r}")
     if not isinstance(f["file"], str) or not f["file"]:
         fail(f"{prefix}.file: must be a non-empty string")
     if not isinstance(f["message"], str) or not f["message"]:
         fail(f"{prefix}.message: must be a non-empty string")
     if len(f["message"]) > MAX_MESSAGE_CHARS:
-        fail(
-            f"{prefix}.message: {len(f['message'])} characters exceeds the "
-            f"{MAX_MESSAGE_CHARS}-character cap"
-        )
-    if "line" in f and (
-        not isinstance(f["line"], int) or isinstance(f["line"], bool) or f["line"] < 1
-    ):
+        fail(f"{prefix}.message: {len(f['message'])} characters exceeds the {MAX_MESSAGE_CHARS}-character cap")
+    if "line" in f and (not isinstance(f["line"], int) or isinstance(f["line"], bool) or f["line"] < 1):
         fail(f"{prefix}.line: must be a positive integer, got {f['line']!r}")
     for opt in ("rule", "suggested_fix", "reference"):
         if opt in f and not isinstance(f[opt], str):
@@ -154,20 +150,11 @@ def check_consistency(data: dict[str, object]) -> None:
     has_warn = "warn" in severities
     verdict = data["verdict"]
     if has_block and verdict != "block":
-        fail(
-            f"verdict mismatch: findings contain a 'block' severity but verdict is "
-            f"{verdict!r}; expected 'block'"
-        )
+        fail(f"verdict mismatch: findings contain a 'block' severity but verdict is {verdict!r}; expected 'block'")
     if not has_block and has_warn and verdict != "warn":
-        fail(
-            f"verdict mismatch: findings contain 'warn' but no 'block', so verdict "
-            f"must be 'warn'; got {verdict!r}"
-        )
+        fail(f"verdict mismatch: findings contain 'warn' but no 'block', so verdict must be 'warn'; got {verdict!r}")
     if not has_block and not has_warn and verdict != "clean":
-        fail(
-            f"verdict mismatch: no 'block' or 'warn' findings, so verdict must be "
-            f"'clean'; got {verdict!r}"
-        )
+        fail(f"verdict mismatch: no 'block' or 'warn' findings, so verdict must be 'clean'; got {verdict!r}")
 
 
 def canonicalize(data: dict[str, object]) -> dict[str, object]:
@@ -216,8 +203,6 @@ def main() -> None:
     except json.JSONDecodeError as e:
         fail(f"input is not valid JSON: {e}")
     data = check_top(data)
-    for i, f in enumerate(data["findings"]):
-        check_finding(i, f)
     check_consistency(data)
     canon = canonicalize(data)
     sys.stdout.write(json.dumps(canon, indent=2, sort_keys=False) + "\n")
