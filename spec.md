@@ -561,42 +561,10 @@ For UI-shaped or design-heavy projects, brainstorm gains an optional "mockup or 
 - No change to the autonomous-loop contracts (sequential dispatch, one-commit finalize, SHA verification, findings schema); their cross-file repetition is deliberate defense-in-depth for fresh-context agents.
 - No re-litigating the 0.6.x design decisions above; this package layers on top.
 
-## /bpe:init (2026-07-26, requested)
-
-Mason's ask, verbatim intent: profile and repo setup must be codified, not silently configured by an agent editing user-local files ad hoc.
-
-### Goal
-
-A `/bpe:init` skill that interactively prepares a user and a repo for BPE work, then writes the results to their proper homes.
-Two concerns, both owned by init:
-
-1. **Model profile setup.** Walk the user through the tier map (AskUserQuestion, one question per role group): spec-shaping skills, validator, step-executor/execute-plan, cheap-research. Offer the current Recommended Tier Map from references/model-profiles.md as the default answers, with the frontmatter defaults and full-alias setups as alternatives. Ask scope (user-global ~/.claude/bpe.local.md vs per-project .claude/bpe.local.md) and whether to define a second profile (work). Write the file; never commit it; confirm .gitignore covers .claude/*.local.md when writing per-project.
-2. **Repo pre-flight setup.** Everything /bpe:goal refuses on becomes something init fixes with consent: gitignore entries for commit-msg.md and goal.md, .ai-sessions/ creation, and a verification-command probe (manifest autodetect, else prompt) recorded to spec.md's Available tooling section when a spec exists.
-
-### Design decisions (confirmed 2026-11-03)
-
-- Decision: name is `/bpe:init` despite the built-in /init; the namespace disambiguates, and the concept (initialize this context for BPE) matches user expectation.
-- Decision: init reads the Recommended Tier Map at runtime rather than hardcoding model IDs, so the skill never goes stale when the map updates.
-  Refinement: the map gains a machine-readable fenced YAML profile block under its dated heading, and init reads that block, not the prose table.
-  The repo-root `.claude/bpe.local.md.example` is generated from the same block (or retired), because the two hand-synced copies already drifted (the example cites 2026-07-26; the map is dated 2026-08-08).
-  Init always offers an alias-only option for environments that cannot pin frontier IDs.
-- Decision: init is re-runnable: it shows current resolved state (existing profile file, existing gitignore entries) and edits rather than overwrites; an existing profile is never clobbered without showing a diff first.
-  Addition: on a re-run, init lists where the user's profile differs from the current recommended map, so init doubles as the "update my models" tool.
-- Decision: init does NOT touch skill/agent frontmatter defaults; those remain the shipped tiers, and profiles remain the only per-user override layer (Goal 11 unchanged).
-  Frontmatter lives in the installed plugin cache, so an edit there would be wiped on the next plugin update.
-
-### Verification
-
-skill-creator triggering eval (should fire on "set up bpe", "bpe init", "configure bpe models"; not on generic /init asks); manual smoke test in a throwaway repo (fresh init, re-run idempotence, per-project vs global scope); profile file it writes passes the model-profiles.md schema.
-
-### Sequencing
-
-Layers on the 0.6.x line after the fable-alignment package or alongside it; touches no autonomous-loop contracts.
-
 ## 0.7.2 Fixes (2026-11-03, requested)
 
 The first of four patch releases triaged from the open issues on 2026-11-03.
-The later three are loop efficiency (0.7.3: #51 batch mode, #52 final sweep, #53 checkpoint and report budget), setup (0.7.4: #28 `/bpe:init`, #48 issue format), and the review renderer (0.7.5: #17).
+The later three are loop efficiency (0.7.3: #51 batch mode, #52 final sweep, #53 checkpoint and report budget), setup (0.7.4: #28 `/bpe:init`, #48 issue format, later widened to #55 spec Goals and the open #58 items), and the review renderer (0.7.5: #17).
 Versions keep bumping the patch number; Mason calls the 0.8.0 bump separately, as a version-only change.
 
 ### Goal
@@ -741,3 +709,205 @@ Four work items, each traceable to an issue, plus the version bump.
 - No change to the review renderer (0.7.5, #17).
 - No sweep from `/bpe:execute-plan`; interactive mode is unchanged.
 - No orchestrator-side regrouping, no persisted loop state, no automatic `/clear`.
+
+## 0.7.4 Setup, Issue Format, and Spec Goals (2026-11-22, requested)
+
+The third of the patch releases triaged on 2026-11-03, widened on 2026-11-19.
+It covers #28 (`/bpe:init`), #48 (a structured issue format), #55 (what the permanent spec's `## Goals` holds and how it stays current), and the five items still open on #58.
+This package replaces the `## /bpe:init (2026-07-26, requested)` section that used to sit above the 0.7.2 package; that section's confirmed design decisions are carried below unchanged.
+This repo's own `spec.md` stays in the pre-0.7 layout through 0.7.5.
+Its migration into the new Goals shape is the post-0.7.5 `/bpe:retrofit --resync`, and that run is the worked example #55 asks for in its item 9.
+
+### Goal
+
+Five work items, four traceable to an issue and one from the 2026-11-22 spec review, plus docs and the version bump.
+#55's "Changes, File by File" section holds the line-level locations for item 3; this package states the requirements and the decisions.
+
+1. **Loop follow-ups (#58).**
+   - `/bpe:goal` pre-flight accepts a fully checked `todo.md` when the branch since `main` has no commit whose subject is "Apply final sweep fixes".
+     It writes `goal.md` as usual, and the playbook in `references/validator-protocol.md` says that a turn which finds no unchecked top-level item and no clean sweep earlier in this run dispatches `final-validator`.
+     A branch that already has an "Apply final sweep fixes" commit and a fully checked `todo.md` is refused with a message saying the run is finished.
+     Assumption: a branch whose earlier sweep returned clean has no sweep commit either, so a resumed run sweeps it again; that costs one `final-validator` dispatch and changes nothing.
+     No new goal mode.
+   - `scripts/goal-run-report.py` reports usage for `SendMessage` continuations instead of zero.
+     The first step inspects a real batch-mode transcript (the 0.7.3 Phase 2 session) to learn where a continuation's turns land.
+     Assumption: they land in the same `subagents/agent-<id>.jsonl` as the implement dispatch, and the script attributes each assistant entry to the dispatch whose tool_use-to-tool_result window contains its timestamp.
+     If the transcript shows otherwise, the attribution follows what the transcript shows, recorded as a deviation.
+     The fix is test-first with a fixture transcript under `tests/`.
+     After it lands, rerun the script on the 0.7.3 session and correct the Phase 2 numbers and the understatement note in `.ai-sessions/research/batch-mode-comparison.md`.
+   - `agents/step-executor.md` and `agents/validator.md` each come in under 10,000 characters.
+     Procedural detail and examples move into `references/step-executor-protocol.md` and `references/validator-protocol.md`, which each agent already reads at startup.
+     The hard invariants stay restated in each agent body: never commit to main, exactly one commit per finalize, never `--no-verify`, the validator is read-only, and report blocks are emitted verbatim.
+   - The convergence-aware validator cap and the CHECKPOINT stop get exercised by this release's own goal run where the run reaches them.
+     The accomplishment records whether each fired; a path the run never reaches stays open on #58.
+2. **Structured issue format (#48).**
+   - `references/issue-format.md` defines the format.
+     Required: an imperative title, then `## What Is Wanted`, `## What We Already Know`, and `## Acceptance Criteria`, in that order.
+     Optional, in this order where present: `## Prior Research and Thoughts` (after What We Already Know), `## Changes, File by File`, and `## Out of Scope` (both before Acceptance Criteria).
+     The bar the format sets: an agent reading a conforming issue can start work without asking what is wanted or how completion is judged.
+   - A new skill, `/bpe:new-issue`, drafts an issue in the format from the conversation and the user's argument, shows the full draft, and runs `gh issue create` only after the user confirms.
+     Frontmatter: `model: sonnet`, `disable-model-invocation: true` (it posts to an outside service).
+   - `/bpe:gh-issue` is the reading side: it fetches an existing GitHub issue by number, whoever wrote it, and routes it to brainstorm or plan; `/bpe:new-issue` is the writing side.
+     It checks a fetched issue against the format.
+     A conforming issue with acceptance criteria takes the plan route.
+     A nonconforming issue gets its missing sections named to the user, then takes the brainstorm route.
+     It never refuses an issue.
+   - `.github/ISSUE_TEMPLATE/agent-ready.md` is a GitHub issue template with the required and optional sections as headings.
+     A pytest asserts that its section headings, in order, match the ones `references/issue-format.md` defines, so the two cannot drift.
+3. **What the permanent spec's Goals holds (#55).**
+   - `references/session-management.md` gains a "Goals Section (spec.md)" definition beside the Invariants, Roadmap, and Available tooling definitions:
+     - Goals describes the project as it behaves today, indexed by feature or component, never by phase, release, or issue.
+     - One entry per feature, at planner depth: what a planner needs to change the feature without reading the code (the user-visible surface, the contract others depend on, options and defaults, and the rules that were decisions), with no examples, rationale, or history.
+     - A sentence that starts `Planned (ITEM):` is behavior the named `**Upcoming:**` item will build; it loses the prefix when the item ships.
+       A sentence that starts `Known gap:` is a place where the code or docs fall short of the entry, naming the Upcoming item or issue that covers it.
+       The marker is inline, on the sentence, because planned behavior written in the present tense reads as built.
+     - A `### Feature Status` table opens Goals, with the columns Feature, State, Open Work, Docs, and Code.
+       It carries release state; `**Shipped:**` stays the archive index of converged plans, and the table wins when the two disagree.
+     - A `### Rules Every Feature Follows` subsection states cross-cutting behavior once.
+     - Banned forms: a heading named for a phase, release, or issue, and phase notes such as "renamed everywhere".
+     - Goals holds behavior and contract; CLAUDE.md holds how the code is built; neither repeats the other.
+     - No hard size cap.
+       Decision: `/bpe:retrofit --resync` reports when `spec.md` passes 128 KB and offers to move the longest entries' detail into linked files, since very large projects can have large specs (2026-11-22 review).
+     - `## Component boundaries` and `## Success criteria` are restated as standing descriptions of the project, not per-phase lists.
+     - The file's other text that describes who edits `**Upcoming:**` and Goals changes to match the rules below.
+   - Brainstorm merge mode edits or adds feature entries and marks the new behavior `Planned (ITEM):`, tied to a named `**Upcoming:**` item that the same run adds.
+     The Q&A stays scoped to the change.
+     The diff shown before saving must add no phase-, release-, or issue-named heading.
+     New-spec mode writes feature entries and the Feature Status table from the start.
+     An adjacency candidate sorted "now" lands in an entry.
+   - `/bpe:plan` on a spec whose Goals has a Feature Status table plans the `Planned (ITEM):` sentences of the Upcoming item the user names, names that item in the plan header, and stops with a message when nothing is marked.
+     On a spec without the table it keeps today's behavior (plan the section or package the user names) and prints one line suggesting `/bpe:retrofit --resync`.
+   - The Archive routine in `skills/plan/SKILL.md` gains a fold-in step that runs only when the archived plan converged and the spec has a Feature Status table.
+     It captures the `## Spec Slice` in `accomplishment.md` first, then removes the item's `Planned` prefixes, corrects the entries to what was built, updates the Feature Status table and `**Upcoming:**`, shows the spec diff, and writes it only after the user confirms.
+     A superseded or partial plan, or an old-shape spec, leaves Goals untouched.
+   - `skills/session-summary/SKILL.md` Step 5 runs the Archive routine through the `**Shipped:**` line and the fold-in, stopping only before the routine's fresh-plan step.
+     Today it stops after `accomplishment.md` and skips the Shipped line.
+   - `/bpe:gh-issue`: the brainstorm route enters merge mode when `spec.md` exists.
+     The plan route on a spec with a Feature Status table first records the issue's behavior change as `Planned (ITEM):` sentences in the affected entry and an `**Upcoming:**` item, shows the diff, writes it after confirmation, and then plans that item.
+   - `/bpe:retrofit`:
+     - The repo read covers the docs, the changelog, and the public API, not only top-level docstrings.
+     - The skill describes Goals, Component boundaries, and Success criteria in the format above.
+     - `--resync` checks Goals entry by entry against the code and offers a rebuild when Goals has no Feature Status table.
+     - Structure Migration builds Goals from the repo when the old spec has no project-level requirements.
+     - A rebuild is staged: the Feature Status table first, then entries confirmed with the user in groups.
+   - `skills/review/SKILL.md` treats each Goals entry and the Feature Status table as decision units.
+   - `bpe/README.md`'s description of spec.md matches the Goals definition.
+4. **`/bpe:init` (#28).**
+   - A new skill, `/bpe:init`, prepares a user and a repo for BPE work and writes the results to their proper homes.
+     Frontmatter: `model: sonnet`, `disable-model-invocation: true`.
+     Mason's intent (2026-07-26): profile and repo setup must be codified, not silently configured by an agent editing user-local files ad hoc.
+   - Model profile setup: one AskUserQuestion per role group (spec-shaping skills, validator and final-validator, step-executor and execute-plan, cheap-research), offering the newest Recommended Tier Map as the default answers, with the frontmatter defaults and an alias-only setup as alternatives.
+     It asks the scope (user-global `~/.claude/bpe.local.md` or per-project `.claude/bpe.local.md`) and whether to define a second profile (work).
+     It writes the file and never commits it; for a per-project file it confirms `.gitignore` covers `.claude/*.local.md`, adding the line with consent.
+   - Repo pre-flight setup: everything `/bpe:goal` pre-flight refuses on becomes something init fixes with consent: `.gitignore` entries for `commit-msg.md` and `goal.md`, `.ai-sessions/` creation, and a verification-command probe (manifest autodetect, else a prompt) recorded to the target repo's `spec.md` `## Available tooling` when a spec exists.
+   - `references/model-profiles.md` gains a fenced YAML profile block under its newest dated Recommended Tier Map heading, in the `bpe.local.md` frontmatter schema.
+     Init reads that block at run time, never the prose table and never hardcoded model IDs.
+     A pytest asserts the newest block parses and every key in it names a shipped skill or agent.
+   - `.claude/bpe.local.md.example` is deleted.
+     `model-profiles.md`, `bpe/README.md`, and `CLAUDE.md` point at `/bpe:init` instead.
+   - Design decisions confirmed 2026-11-03, carried unchanged:
+     - The name is `/bpe:init` despite the built-in `/init`; the namespace disambiguates.
+     - Init reads the Recommended Tier Map at run time, so the skill never goes stale when the map updates, and always offers an alias-only option for environments that cannot pin frontier IDs.
+     - Init is re-runnable: it shows the current resolved state (existing profile file, existing gitignore entries) and edits rather than overwrites, never replaces an existing profile without showing a diff first, and lists where the user's profile differs from the newest recommended map, so it doubles as the "update my models" tool.
+     - Init never touches skill or agent frontmatter; profiles stay the only per-user override layer, since frontmatter lives in the plugin cache and an edit there is wiped on the next update.
+5. **Deterministic artifact checks and templates (2026-11-22 review).**
+   Mason's direction: spec.md, plan.md, and todo.md are validated with deterministic tools, and output that should be the same every time is rendered from templates so it can be rendered and validated, not written freehand.
+   Both scripts are stdlib-only and live in `bpe/scripts/`, with pytest coverage under `tests/`.
+   - `scripts/check-artifacts.py <path>...` checks the BPE artifacts it is given and prints one line per problem, `path:line: rule: message`.
+     It exits 1 when any hard failure is found and 0 otherwise; warnings print and never fail.
+     - plan.md, hard: step headings read `### Step N: <title>`, with an optional trailing `(task)`; step numbers run in order with no gaps or repeats; every section declares a `**Tools:**` block (or `**Tools:** none`) and a `**Batch:**` line.
+     - todo.md, hard: every item line is a `- [ ]` or `- [x]` checkbox; the top-level items match plan.md's steps one for one, in the same order, with the same titles.
+     - spec.md in the 0.7 form, hard: the canonical section order from `references/session-management.md`.
+       Warnings: the Goals shape (the Feature Status table and its columns, a heading named for a phase, release, or issue, malformed `Planned (ITEM):` and `Known gap:` markers), since a heading check has false positives ("OAuth 2.0") and false negatives ("### Active phase").
+     - spec.md in the pre-0.7 layout (no `## Invariants` and no `## Roadmap / phase log`): one `pre-0.7 layout` warning and no section checks, so this repo's own spec passes.
+     - Callers: `/bpe:plan` after it writes plan.md and todo.md, repairing until clean; `/bpe:brainstorm`, `/bpe:retrofit`, and `/bpe:apply-review` before they show a spec diff; `/bpe:goal` pre-flight, which refuses on a hard failure and names it.
+   - `scripts/render-artifact.py <kind>` renders fixed-shape output from `string.Template` files in `bpe/templates/`, taking its values as JSON on stdin or, for todo.md, from plan.md itself.
+     - `todo`: todo.md derived from plan.md's step headings, so todo.md is no longer written by the model; existing `[x]` marks carry over by step title.
+     - `goal`: goal.md from the mode, the condition, and the resolved verification command; the 4,000-character cap check moves into the script, which exits 1 over the cap.
+     - `accomplishment`: the accomplishment.md skeleton for the Archive routine, with the prose fields filled from the JSON.
+     - `issue`: the `/bpe:new-issue` body, with the sections in the `references/issue-format.md` order, so the draft conforms by construction.
+     - The skills that write these four artifacts call the script instead of writing them freehand; prose inside a field stays model-written.
+   - Spec and plan bodies stay model-written; the checker validates them.
+6. **Docs and version.**
+   - `CLAUDE.md` drops the hand-sync rule for the retired example and names `/bpe:init`, `/bpe:new-issue`, the issue template, `check-artifacts.py`, and `render-artifact.py`.
+   - `plugin.json` version is 0.7.4.
+
+### Design decisions (confirmed 2026-11-19 and 2026-11-22)
+
+- Decision: #55 and the remaining #58 items fold into 0.7.4 beside #28 and #48 (2026-11-19).
+- Decision: the sweep resume is a pre-flight change, not a new mode (2026-11-19).
+- Decision: this repo's spec takes 0.7.4 as an appended package and migrates in the post-0.7.5 resync; the 2026-11-07 deferral stands.
+- Decision: #55's five owner defaults are taken as written: planner depth, no hard size cap with a resync report, the Feature Status table winning over `**Shipped:**`, Goals against CLAUDE.md, and release state in the table updated by the project's own release checklist.
+- Decision: the new Goals rules key on the Feature Status table; a spec without it keeps today's planning behavior, honoring the 0.7 rule of no forced migration.
+- Decision: the issue format has three required sections and three optional ones; `/bpe:new-issue` posts only after confirmation; `/bpe:gh-issue` routes on conformance and never refuses.
+- Decision: the GitHub issue template ships in 0.7.4, kept in step with `issue-format.md` by a test.
+- Decision: `.claude/bpe.local.md.example` is retired; the YAML block in `model-profiles.md` is the one machine-readable copy of the map.
+- Decision: the agent trims move procedure into the protocol references and keep the hard invariants restated in each agent, preserving the 2026-07-25 defense-in-depth ruling.
+- Decision: the goal loop gates on text-level checks and `just check`; the recorded runs of interactive skills happen in a manual pass before the PR.
+- Decision: no vendored rules for this repo; it has one contributor, and 0.7.2 and 0.7.3 vendored nothing.
+- Decision: deterministic artifact checks and fixed-shape templates land in 0.7.4, stdlib-only (`string.Template`, no Jinja), so `deps: frozen` holds and no new prerequisite reaches users (2026-11-22 review).
+- Decision: the resync size report threshold is 128 KB (2026-11-22 review).
+
+### Constraints
+
+- `deps: frozen`: the scripts and hooks stay stdlib-only; no dependency changes beyond the dev group.
+- `paths: bpe/**, tests/**, .github/ISSUE_TEMPLATE/**, .claude/bpe.local.md.example, CLAUDE.md, README.md`
+- The loop never edits this repo's `spec.md`, which stays in the pre-0.7 layout.
+- Shipped frontmatter stays alias-only; `/bpe:init` never edits frontmatter and never commits a profile file.
+- `/bpe:new-issue` never posts without the user's confirmation.
+- No loop-contract change beyond the sweep-resume pre-flight: sequential dispatch, one commit per batch, SHA verification, and the findings schema all hold.
+- Python behavior changes are test-first under `just check`.
+- Python: per the python:python skill. Prose: per the user's writing hard rules.
+
+### Tools
+
+**Skills:** plugin-dev:skill-development, plugin-dev:agent-development, python:python, skill-creator:skill-creator
+
+**MCPs:** none
+
+**Verification command:** `just check`
+
+### Verification
+
+The goal loop's gate, checkable by reading files or running commands:
+
+- `just check` passes, including the new tests: goal-run-report continuation attribution, issue template headings against `issue-format.md`, the newest YAML tier-map block, and `check-artifacts.py` and `render-artifact.py` on fixtures (a clean plan and todo pair, a todo that drifted from its plan, a 0.7-form spec out of order, this repo's pre-0.7 spec, a goal.md over the cap).
+- `render-artifact.py todo` on the release's own plan.md reproduces its todo.md, and `check-artifacts.py plan.md todo.md` exits 0.
+- `wc -c bpe/agents/step-executor.md bpe/agents/validator.md` reports under 10,000 for each, and each still states the hard invariants listed in item 1.
+- `skills/goal/SKILL.md` pre-flight and the playbook state the fully checked `todo.md` rule and the sweep dispatch.
+- `references/session-management.md` has a Goals definition that states the index, the entry shape, the depth rule, both markers, the Feature Status table, and the banned forms.
+- `skills/brainstorm/SKILL.md` no longer says a merge-mode run "adds a phase", and new-spec mode writes entries and the Feature Status table.
+- `skills/plan/SKILL.md` says what it plans in a spec with a Feature Status table, what it does when nothing is marked, and what it does on a spec without the table; its Archive routine has the fold-in with the converged-only condition.
+- `skills/session-summary/SKILL.md` reaches the Shipped line and the fold-in.
+- `skills/gh-issue/SKILL.md` covers both routes when `spec.md` exists and routes on the issue format.
+- `skills/retrofit/SKILL.md` describes Goals, Component boundaries, and Success criteria, deepens the repo read, and builds Goals in Structure Migration.
+- `skills/init/SKILL.md` and `skills/new-issue/SKILL.md` exist; `claude plugin validate ./bpe` passes with only the expected missing-icon warning.
+- `.claude/bpe.local.md.example` is gone, and `grep -rn "bpe.local.md.example" bpe CLAUDE.md README.md` matches nothing.
+- `plugin.json` version is 0.7.4.
+
+The manual pass before the PR, run in one interactive session with `--plugin-dir ./bpe` in scratch repos, with each spec diff attached to the PR body:
+
+- A merge-mode brainstorm on a spec with entries edits or adds entries with `Planned (ITEM):` sentences and adds no phase-, release-, or issue-named heading.
+- `/bpe:plan` on that spec plans only the named item; on a spec with a Feature Status table and nothing planned it stops with a message; on an old-shape spec it plans the named package and prints the resync suggestion.
+- Archiving the converged plan leaves Goals describing the new behavior as current, with no `Planned` prefix for that item and the table updated; archiving a superseded plan changes nothing in Goals.
+- A cycle through `/bpe:gh-issue`'s plan route leaves Goals describing the new behavior after the archive.
+- `/bpe:retrofit --resync` on markwright at `274c4fd` proposes a feature-indexed Goals built from the code and docs.
+- `/bpe:new-issue` drafts a conforming issue and posts nothing until confirmed; `/bpe:gh-issue` on a nonconforming issue names the missing sections.
+- `/bpe:init` in a throwaway repo: a fresh run, a re-run that changes nothing, both scopes, and the written profile passing the `model-profiles.md` schema.
+- A skill-creator triggering eval: `/bpe:init`'s description fires on "set up bpe", "bpe init", and "configure bpe models", and not on generic `/init` asks.
+
+### Non-goals for this package
+
+- No `/bpe:init` switching the session model or editing `settings.json`.
+- No new goal mode for sweep-only resumes.
+- No migration of this repo's `spec.md` (post-0.7.5 resync).
+- No change to the review renderer (0.7.5, #17).
+
+### Deferred
+
+- Rendering spec.md and plan.md bodies from contracts instead of model-written prose; revisit after 0.7.5's renderer lands.
+- Reconciling `**Upcoming:**` and `**Deferred:**` against open GitHub issues, as a report-only step in resync and merge mode.
+- Reordering the canonical sections so Roadmap and Goals come before Invariants; it would make every existing 0.7 spec non-canonical.
+- The validator reading Starting context "to weight findings", which `session-management.md` claims and `agents/validator.md` never says.
+- `/bpe:init` writing CLAUDE.md or starting a brainstorm.
+- `/bpe:gh-issue` reformatting an existing issue to conform.
