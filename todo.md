@@ -36,9 +36,9 @@ Mirrors plan.md, one checkbox per step; check off each step as it finalizes.
 
 ## Section 5: /bpe:init (#28)
 
-- [ ] Step 1: The YAML Tier-Map Block and Its Test
-- [ ] Step 2: The /bpe:init Skill
-- [ ] Step 3: Retire the Example Profile File
+- [x] Step 1: The YAML Tier-Map Block and Its Test
+- [x] Step 2: The /bpe:init Skill
+- [x] Step 3: Retire the Example Profile File
 
 ## Section 6: Docs and Release
 

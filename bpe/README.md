@@ -172,13 +172,31 @@ Skills and agents ship with fixed `model:` tiers in their frontmatter.
 A `.claude/bpe.local.md` settings file overrides those defaults per skill and per agent, grouped into named profiles you switch per machine, per project, or per shell.
 The canonical schema and lookup precedence live in [references/model-profiles.md](references/model-profiles.md).
 
-Quick start:
+Quick start: run `/bpe:init`.
+It interviews you one role group at a time, offers the newest Recommended Tier Map as the default answers (with the frontmatter defaults and an alias-only setup as alternatives), asks whether the file is user-global (`~/.claude/bpe.local.md`) or per-project (`.claude/bpe.local.md`, which shadows the user-global file key by key), and shows a diff before it replaces an existing file.
+Re-run it after a model generation ships to see where your profile differs from the map.
 
-1. Copy [`.claude/bpe.local.md.example`](../.claude/bpe.local.md.example) from this repo's root to `~/.claude/bpe.local.md` (user-global) or to `.claude/bpe.local.md` in a project (per-project; shadows the user-global file key by key).
-2. Set `active_profile` to the profile you want live.
-3. Add per-skill or per-agent overrides under that profile. Values are family aliases (`opus`, `sonnet`, `haiku`) or a pinned model ID like `claude-fable-5-2`. Anything you leave out falls back to the frontmatter default, so list only what differs.
+The file is plain frontmatter, so you can also write or edit it by hand:
 
-The dated, maintained recommendation for which model belongs in which role lives in [references/model-profiles.md](references/model-profiles.md) under "Recommended Tier Map"; the example file mirrors it.
+```markdown
+---
+active_profile: personal
+profiles:
+  personal:
+    skills:
+      brainstorm: claude-fable-5-2
+    agents:
+      final-validator: claude-fable-5-2
+  work:
+    skills:
+      brainstorm: opus
+---
+```
+
+Values are family aliases (`opus`, `sonnet`, `haiku`) or a pinned model ID.
+Anything you leave out falls back to the frontmatter default, so list only what differs.
+
+The dated, maintained recommendation for which model belongs in which role lives in [references/model-profiles.md](references/model-profiles.md) under "Recommended Tier Map"; its YAML block is what `/bpe:init` reads.
 
 The `BPE_PROFILE` environment variable switches profiles per shell: `BPE_PROFILE=work claude` selects the `work` profile for that session regardless of what the files say.
 

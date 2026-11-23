@@ -24,6 +24,7 @@ Two locations, checked in order:
 The per-project file shadows the user-global file (same pattern as CLAUDE.md).
 Shadowing is key-level, not whole-file: a lookup that finds no entry in the per-project file falls through to the user-global file before falling back to frontmatter.
 
+`/bpe:init` creates and updates either file from the newest Recommended Tier Map.
 Profile files are user-local state and must not be committed.
 Add `.claude/*.local.md` to `.gitignore` in any project that carries one.
 
@@ -115,7 +116,8 @@ With this file at `~/.claude/bpe.local.md` and no per-project file:
 ## Recommended Tier Map
 
 Dated recommendations, not schema.
-This section is re-evaluated when a model generation ships or a recommendation proves out (or fails) in use; a stale date here is a defect, and the `.claude/bpe.local.md.example` file at the repo root mirrors whatever this section currently says.
+This section is re-evaluated when a model generation ships or a recommendation proves out (or fails) in use; a stale date here is a defect.
+`/bpe:init` reads the newest dated entry's YAML block, so the block is the machine-readable copy of that entry's table and the one place a user's profile is generated from.
 
 ### 2026-11-09 (Opus 5.5 unpinned, Fable narrowed to spec-shaping and the final sweep)
 
@@ -126,6 +128,24 @@ This section is re-evaluated when a model generation ships or a recommendation p
 | validator agent | `opus` | Per-batch adversarial review, and Opus 5.5 now holds the judgment it wants |
 | step-executor, execute-plan, cheap-research, and the mechanical skills | frontmatter defaults (`sonnet`) | Bounded execution against a decision-complete plan and fast lookups; the shipped sonnet tiers hold |
 | final-validator agent (end-of-run sweep) | `claude-fable-5-2` | Where Fable returns in validation: one end-of-run sweep, not per-step review |
+
+The YAML block below is the machine-readable copy of this table.
+`/bpe:init` reads it at run time and never reads the prose table, and `tests/test_model_profiles.py` checks that every key names a shipped skill or agent.
+
+```yaml
+active_profile: personal
+profiles:
+  personal:
+    skills:
+      brainstorm: claude-fable-5-2
+      plan: claude-fable-5-2
+      retrofit: claude-fable-5-2
+      review: opus
+      apply-review: opus
+    agents:
+      validator: opus
+      final-validator: claude-fable-5-2
+```
 
 Why the unpin: Opus 5.5 proved reliable on bounded work, retiring the 2026-08-08 rollback to pinned Opus 4.8 (#37, #42).
 The direction now is to use Fable less and later: spec-shaping and the end-of-run sweep, not per-step execution or validation.

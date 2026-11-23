@@ -10,6 +10,8 @@ dev = [
     "mypy",
     "pytest",
     "pytest-cov",
+    "pyyaml>=6.0.4",
+    "types-pyyaml>=6.0.12.20261122",
 ]
 
 [tool.ruff]
