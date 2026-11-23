@@ -382,7 +382,8 @@ A literal `**Tools:** none` disables validator dispatch for every step in that s
 ### Transitional read of legacy plans
 
 Plans written before 0.6.0 declare `**Validator consults:**` instead of `**Tools:**`.
-The validator and orchestrator honor the legacy block name: treat it as a Tools block declaring Skills and MCPs with an empty Linters list.
+`/bpe:goal` refuses such a plan (`check-artifacts.py` exits 1), so the loop never runs one.
+Outside `/bpe:goal`, the validator honors the legacy block name: treat it as a Tools block declaring Skills and MCPs with an empty Linters list.
 New plans emit `**Tools:**` only.
 
 ## Batch Line
@@ -396,7 +397,7 @@ To split a section into several batches, name them `<name>-a`, `<name>-b`, and s
 Put each name on a per-step `**Batch:**` line placed under the `### Step` heading.
 A per-step line shadows the section line.
 
-A plan with no Batch lines (written before 0.7.3) runs every section as `single`.
+A plan with no Batch lines (written before 0.7.3) is refused by `/bpe:goal` (`check-artifacts.py` exits 1); add `**Batch:** single` to each section to keep the per-step loop.
 
 ## Tool-list propagation
 

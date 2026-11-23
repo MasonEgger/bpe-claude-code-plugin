@@ -1,7 +1,7 @@
 $condition
 
 You're the orchestrator for a validator-aware autonomous BPE run. Loop until the goal condition above is met.
-READ $${CLAUDE_PLUGIN_ROOT}/references/validator-protocol.md "## Orchestrator Playbook" AT THE START OF EVERY TURN and follow it exactly. It holds the per-turn procedure: branch check, interruption check, state machine, validator and fix loop, finalize verification.
+READ $plugin_root/references/validator-protocol.md "## Orchestrator Playbook" AT THE START OF EVERY TURN and follow it exactly. It holds the per-turn procedure: branch check, interruption check, state machine, validator and fix loop, finalize verification.
 
 SEQUENTIAL DISPATCHES ONLY. One dispatch (Agent or SendMessage) per turn. BPE steps share todo.md, git tree, test suite; parallel dispatches corrupt all three. After one dispatch + verification, YOUR TURN ENDS; the /goal evaluator decides if a new turn begins.
 

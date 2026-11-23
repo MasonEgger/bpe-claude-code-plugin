@@ -73,7 +73,8 @@ Say "Every todo item is checked; this run goes straight to the final sweep." and
 In section mode, "zero unchecked items" means zero under the named section.
 A branch whose earlier sweep returned clean has no sweep commit, so a resumed run sweeps it again; that costs one final-validator dispatch and changes nothing.
 
-The Tools-block count from pre-flight (`**Tools:**`, or legacy `**Validator consults:**`) is informational, not a refusal trigger. Zero is fine; the orchestrator treats every section as `none` and skips the validator loop.
+The Tools-block count from pre-flight is informational, not a refusal trigger.
+Every section has a `**Tools:**` line by this point (`check-artifacts.py` refused the plan otherwise); a count of zero means every line reads `none`, and the orchestrator skips the validator loop.
 
 **Warn (do not refuse) on a declared-but-absent MCP.**
 For each plan section's `**Tools:**` block, read its `MCPs:` sub-field (skip `none`, a missing sub-field, or a legacy `**Validator consults:**` block with no MCPs).

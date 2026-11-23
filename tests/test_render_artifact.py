@@ -202,7 +202,9 @@ class TestGoal:
         assert code == 0
         assert out.startswith("Every item is checked off.\n\nYou're the orchestrator")
         assert "Mode: full. Test: pytest -q. Branch: release-0.7.4." in out
-        assert "${CLAUDE_PLUGIN_ROOT}/references/validator-protocol.md" in out
+        plugin_root = RENDERER_PATH.resolve().parent.parent
+        assert f"READ {plugin_root}/references/validator-protocol.md" in out
+        assert "${CLAUDE_PLUGIN_ROOT}" not in out
         assert not re.search(r"\$(condition|mode|test_cmd|branch)", out)
 
     def test_over_the_cap_exits_1_with_the_length_and_empty_stdout(

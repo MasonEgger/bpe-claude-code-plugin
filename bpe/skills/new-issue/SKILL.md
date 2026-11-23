@@ -9,7 +9,7 @@ disable-model-invocation: true
 
 # New Issue Command
 
-Drafts a GitHub issue in the format `references/issue-format.md` defines, shows the full draft, and posts it with `gh issue create` only after an explicit yes.
+Drafts a GitHub issue in the format `references/issue-format.md` defines, shows the full draft, and posts it with `gh api` only after an explicit yes.
 This is the writing side; `/bpe:gh-issue` is the reading side that fetches an issue and routes it.
 It never posts without confirmation.
 
@@ -25,7 +25,10 @@ It never posts without confirmation.
    A nonzero exit names the missing or unknown section; fix the input and render again.
 5. Show the full rendered draft, title included, and ask whether to post it.
 6. On an explicit yes:
-   - Make a temp path with `mktemp -u`, write the body (everything after the title line) to it, and run `gh issue create --title "<title>" --body-file <path>`.
+   - Make two temp paths with `mktemp -u`, outside the repo.
+     Write the title (the draft's title line, with no trailing newline) to one and the body (everything after the title line) to the other.
+     Never put the title on the command line; it can hold backticks, quotes, or `$(`.
+   - Post exactly those files: `gh api repos/{owner}/{repo}/issues -F title=@<title-path> -F body=@<body-path>`.
    - Print the issue URL.
 7. On anything other than a yes, post nothing.
    Offer to revise the draft instead.

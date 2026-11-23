@@ -105,7 +105,7 @@ Requires Claude Code v2.1.139+.
 
 `/bpe:goal` wraps the BPE loop in Claude Code's `/goal` autonomous-execution primitive.
 The parent session orchestrates; the work is delegated to the `bpe:step-executor` subagent, one batch per invocation (a batch of one is a step).
-A batch is the consecutive unchecked `todo.md` steps that share one `**Batch:**` name in `plan.md`; a plan with no Batch lines runs every section as `single`.
+A batch is the consecutive unchecked `todo.md` steps that share one `**Batch:**` name in `plan.md`; `/bpe:goal` refuses a plan with no Batch lines.
 The executor stays warm across a batch's modes: the parent starts it with an Agent call for `implement`, then sends `fix` and `finalize` to the same agent with SendMessage.
 The validator is dispatched cold every time.
 The parent's transcript stays small, and `/goal`'s evaluator watches it to decide when the run is complete.

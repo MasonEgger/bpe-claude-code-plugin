@@ -25,7 +25,7 @@ Kinds.
                     When a todo.md sits beside the plan, a step whose title is checked there stays `[x]`;
                     a step whose title changed comes out unchecked.
     goal            Reads a JSON object from stdin with the keys condition, mode, test_cmd, and branch, and emits
-                    goal.md.
+                    goal.md, with the absolute plugin root filled in where the playbook path goes.
                     /goal caps its argument at 4000 characters; a longer result prints its length to stderr,
                     exits 1, and writes nothing to stdout.
     accomplishment  Reads a JSON object from stdin and emits the accomplishment.md that
@@ -55,7 +55,8 @@ import sys
 from pathlib import Path
 from string import Template
 
-TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "templates"
+PLUGIN_ROOT = Path(__file__).resolve().parent.parent
+TEMPLATES_DIR = PLUGIN_ROOT / "templates"
 GOAL_CHAR_CAP = 4000
 
 FENCE = re.compile(r"^\s*(```|~~~)")
@@ -190,7 +191,7 @@ def render_goal(stream_text: str) -> str:
     """
     data = load_json_object(stream_text, GOAL_KEYS)
     text = Template((TEMPLATES_DIR / "goal.md.tmpl").read_text(encoding="utf-8")).substitute(
-        {key: str(data[key]) for key in GOAL_KEYS}
+        {**{key: str(data[key]) for key in GOAL_KEYS}, "plugin_root": str(PLUGIN_ROOT)}
     )
     if len(text) > GOAL_CHAR_CAP:
         raise RenderError(f"goal.md is {len(text)} characters, over the {GOAL_CHAR_CAP} cap")

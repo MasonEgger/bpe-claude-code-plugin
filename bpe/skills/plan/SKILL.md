@@ -280,7 +280,7 @@ A literal `none` value disables the validator dispatch for every step in that se
 
 ### Backwards compatibility
 
-Existing plans that declare the legacy `**Validator consults:**` block still work.
+Existing plans that declare the legacy `**Validator consults:**` block still work outside `/bpe:goal`, which refuses them.
 The validator honors the old block name and treats it as a Tools block declaring Skills and MCPs with an empty Linters list.
 New plans emit `**Tools:**` only; never write `**Validator consults:**` in fresh output.
 
