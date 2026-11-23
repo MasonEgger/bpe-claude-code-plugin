@@ -17,6 +17,8 @@ The `python` plugin formerly hosted here moved to a private marketplace in July 
 | `/bpe:execute-plan` | Implement the next unchecked step as written: RED-GREEN-REFACTOR for Feature steps, Scope/Tooling/Do/Verify/Document for Task steps; checks the diff against the spec's fences before marking it done |
 | `/bpe:goal` | Wrap the loop in an autonomous `/goal` run: dispatches a fresh subagent per step, gates each one behind a read-only validator, commits per step |
 | `/bpe:gh-issue` | Fetch a GitHub issue and route to brainstorm or plan based on whether it follows the issue format |
+| `/bpe:new-issue` | Draft a GitHub issue in the agent-ready format and post it only after confirmation |
+| `/bpe:init` | Interview for a model profile (`bpe.local.md`) and fix what `/bpe:goal` pre-flight refuses on, each write behind consent |
 | `/bpe:commit-message` | Generate a commit message explaining what was changed |
 | `/bpe:review` | Generate an HTML view of `spec.md` / `plan.md` / `todo.md` and serve it locally for visual review with annotations |
 | `/bpe:apply-review` | Load saved review feedback and apply changes to the reviewed artifact |
@@ -101,7 +103,7 @@ Remove the old one and re-add:
 - `bpe/.claude-plugin/plugin.json`: BPE plugin manifest
 - `bpe/skills/<name>/SKILL.md`: BPE skills (invoked as `/bpe:<name>`)
 - `bpe/agents/`: subagents (`step-executor` and `validator` for `/bpe:goal`; `cheap-research` for the spec and plan skills)
-- `bpe/scripts/`: bundled helper scripts (`review-server.py` for `/bpe:review`, `validate-findings.py` for the validator schema)
+- `bpe/scripts/`: bundled helper scripts (`review-server.py` for `/bpe:review`, `validate-findings.py` for the validator schema, `check-artifacts.py` and `render-artifact.py` for the spec, plan, todo, and issue formats)
 - `bpe/references/`: plugin-bundled reference docs that skills read directly (e.g. `session-management.md`)
 
 ## Prerequisites

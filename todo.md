@@ -42,4 +42,4 @@ Mirrors plan.md, one checkbox per step; check off each step as it finalizes.
 
 ## Section 6: Docs and Release
 
-- [ ] Step 1: CLAUDE.md, READMEs, and Version 0.7.4
+- [x] Step 1: CLAUDE.md, READMEs, and Version 0.7.4

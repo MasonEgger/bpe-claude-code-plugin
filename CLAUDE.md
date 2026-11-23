@@ -6,10 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A single-plugin Claude Code marketplace.
 `.claude-plugin/marketplace.json` at the root registers one plugin, `bpe`, whose source is the `bpe/` directory, so the install target is `bpe@bpe`.
-Everything under `bpe/` ships to users; everything outside it (tests, `pyproject.toml`, `justfile`, `spec.md`, `.ai-sessions/`) is development material and does not ship.
+Everything under `bpe/` ships to users; everything outside it (tests, `pyproject.toml`, `justfile`, `spec.md`, `.ai-sessions/`, `.github/ISSUE_TEMPLATE/`) is development material and does not ship.
 
 Most of the plugin is Markdown that instructs an agent: skills, agent prompts, and reference files.
-The only executable code is three Python scripts in `bpe/scripts/` and two hooks in `bpe/hooks/`.
+The only executable code is five Python scripts in `bpe/scripts/` and two hooks in `bpe/hooks/`.
 
 ## Commands
 
@@ -39,11 +39,12 @@ Edit files under `bpe/` from a session that loads the installed copy (`claude pl
 
 ### Layout Under `bpe/`
 
-- `skills/<name>/SKILL.md`: one per slash command (`/bpe:brainstorm`, `/bpe:plan`, `/bpe:execute-plan`, `/bpe:goal`, and the rest).
+- `skills/<name>/SKILL.md`: one per slash command (`/bpe:brainstorm`, `/bpe:plan`, `/bpe:execute-plan`, `/bpe:goal`, `/bpe:init`, `/bpe:new-issue`, and the rest).
 - `agents/`: the subagents `/bpe:goal` dispatches (`step-executor`, `validator`, `final-validator`) plus `cheap-research`.
 - `references/`: the contracts that skills and agents read at run time through `${CLAUDE_PLUGIN_ROOT}/references/...`.
 - `hooks/`: `hooks.json` wires two Python hooks; each has a sibling `.md` that documents its behavior.
-- `scripts/`: `review-server.py` (serves the `/bpe:review` page), `validate-findings.py` (schema check for validator output), `goal-run-report.py` (token and dispatch accounting for a goal run).
+- `scripts/`: `review-server.py` (serves the `/bpe:review` page), `validate-findings.py` (schema check for validator output), `goal-run-report.py` (token and dispatch accounting for a goal run), `check-artifacts.py` (structure check for `spec.md`, `plan.md`, and `todo.md`), `render-artifact.py` (renders `todo.md` from `plan.md`, and issue bodies in the agent-ready format).
+- `templates/`: the file templates skills fill in (`goal.md`, `todo.md`, `accomplishment.md`).
 
 ### References Are the Source of Truth
 
@@ -52,6 +53,7 @@ A rule that more than one skill or agent depends on lives in exactly one referen
 - `session-management.md`: formats for everything in `.ai-sessions/`, plus the spec.md section order and the plan-archive layout.
 - `validator-protocol.md`: the findings schema and the Orchestrator Playbook, which is the per-turn procedure for a `/bpe:goal` run.
 - `step-executor-protocol.md`: the executor's `implement`, `fix`, and `finalize` modes.
+- `issue-format.md`: the agent-ready issue sections; `.github/ISSUE_TEMPLATE/agent-ready.md` must list the same headings, and a test keeps them in sync.
 - `model-profiles.md`: the per-user model profile schema and the dated Recommended Tier Map.
 
 When a change alters a contract, grep for the old wording across `skills/`, `agents/`, `references/`, and both READMEs.
@@ -79,7 +81,7 @@ At the end of a full or section run, `final-validator` sweeps the whole branch d
 
 Shipped frontmatter uses family aliases only (`opus`, `sonnet`, `haiku`).
 A pinned model ID reaches a seat only through a user's `bpe.local.md` profile, which the `profile-check` hook surfaces on each `/bpe:<name>` invocation.
-`.claude/bpe.local.md.example` mirrors the newest dated tier map in `model-profiles.md`; update both together.
+`/bpe:init` reads the newest YAML block in `model-profiles.md`.
 
 ## Repo Conventions
 
