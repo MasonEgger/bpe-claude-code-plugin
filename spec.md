@@ -47,6 +47,21 @@ Tools the `bpe:validator` agent should consult and the `bpe:step-executor` shoul
 
 **Notes:** This redesign is markdown-only. No TDD. Every step is Task-template shape (Scope / Tooling / Do / Verify / Document) regardless of the file type touched. Even the small amount of Python work (`bpe/scripts/validate-findings.py` if Component I changes its schema) is Task-shape: edit the script, run it against a sample input, confirm output. No RED/GREEN/REFACTOR cycles anywhere in this project.
 
+## External tool candidates
+
+Cached by `/bpe:plan` Pass 2 (`bpe:cheap-research`, 2026-11-22) for the 0.7.4 package.
+
+- plugin-dev:plugin-validator (agent) :: validates plugin manifest, skills, hooks structure; fits the new skills and the two hooks :: /home/mmegger/.claude/plugins/cache/claude-plugins-official/plugin-dev/0.1.2/agents/plugin-validator.md
+- plugin-dev:skill-reviewer (agent) :: reviews SKILL.md quality for the new /bpe:init and /bpe:new-issue skills and the edited skills :: /home/mmegger/.claude/plugins/cache/claude-plugins-official/plugin-dev/0.1.2/agents/skill-reviewer.md
+- plugin-dev:hook-development :: reference for hooks.json and the profile-check hook, relevant if the skill edits touch hook wiring :: /home/mmegger/.claude/plugins/cache/claude-plugins-official/plugin-dev/0.1.2/skills/hook-development/SKILL.md
+- plugin-dev:plugin-settings :: the .local.md settings pattern, matches /bpe:init writing bpe.local.md model profiles :: /home/mmegger/.claude/plugins/cache/claude-plugins-official/plugin-dev/0.1.2/skills/plugin-settings/SKILL.md
+- plugin-dev:plugin-structure :: manifest and directory layout rules for adding skills under bpe/ :: /home/mmegger/.claude/plugins/cache/claude-plugins-official/plugin-dev/0.1.2/skills/plugin-structure/SKILL.md
+- plugin-dev:command-development :: slash-command frontmatter and argument handling (allowed-tools, AskUserQuestion use) for /bpe:init and /bpe:new-issue :: /home/mmegger/.claude/plugins/cache/claude-plugins-official/plugin-dev/0.1.2/skills/command-development/SKILL.md
+- content-design:style-linting :: lints prose against the author's voice rules; useful for the issue template and edited Markdown :: /home/mmegger/.claude/plugins/cache/mmegger-private-plugins/content-design/2026.11.10.1/skills/style-linting/SKILL.md
+- content-design:copy-editor (agent) :: edits Markdown prose for AI tells, relevant to trimming the two agent prompts under 10,000 chars :: /home/mmegger/.claude/plugins/cache/mmegger-private-plugins/content-design/2026.11.10.1/agents/copy-editor.md
+- bpe:gh-issue (installed 0.7.3) :: existing issue skill; prior art for the structured format /bpe:new-issue extends :: /home/mmegger/.claude/plugins/cache/bpe/bpe/0.7.3/skills/gh-issue/SKILL.md
+- anthropic-agent-skills:doc-coauthoring :: structured doc drafting workflow; loose fit for the issue-drafting flow :: /home/mmegger/.claude/plugins/cache/anthropic-agent-skills/example-skills/e4bb5d960d87/skills/doc-coauthoring/SKILL.md
+
 ## Goals
 
 Each goal is a load-bearing capability the 0.6.0 release must land. Non-negotiable; individual sub-decisions inside each goal are open for plan-time refinement.
