@@ -75,6 +75,8 @@ Apply the **global_comment** as a holistic directive across the artifact (e.g. "
 
 Read the artifact via the Read tool. Make targeted edits via the Edit tool, one Edit per affected section. Do not rewrite the whole file unless the global comment explicitly requests it. Preserve formatting, list styles, and unrelated sections exactly.
 
+After editing spec.md, plan.md, or todo.md, run `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/check-artifacts.py <edited-file>` and include its output in the Step 5 report.
+
 ## Step 5: Confirm
 
 After applying, show the user:

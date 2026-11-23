@@ -14,9 +14,9 @@ Mirrors plan.md, one checkbox per step; check off each step as it finalizes.
 
 - [x] Step 1: check-artifacts.py for plan.md and todo.md
 - [x] Step 2: check-artifacts.py for spec.md
-- [ ] Step 3: render-artifact.py for todo and goal
-- [ ] Step 4: render-artifact.py for accomplishment
-- [ ] Step 5: Wire the Checker and Renderer into the Skills
+- [x] Step 3: render-artifact.py for todo and goal
+- [x] Step 4: render-artifact.py for accomplishment
+- [x] Step 5: Wire the Checker and Renderer into the Skills
 
 ## Section 3: Structured Issue Format (#48)
 

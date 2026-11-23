@@ -57,6 +57,7 @@ With `--resync`, retrofit instead reconciles an existing spec.md to what the cod
    - Out of scope: what the project deliberately does not do, ever, and, for each goal, the three to five adjacent features an eager agent would bolt on without being asked (brainstorm's Adjacency pass, run against the goals the repo and the Q&A establish). Propose never, not now, or now for each, defaulting to not now; the single confirm carries the sort.
 
 5. **Write spec.md at the repo root.**
+   Once it is written, run `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/check-artifacts.py spec.md`; fix any hard failure, and list warnings for the user.
    Write the sections in the canonical order defined under "Spec Section Order (spec.md)" in `${CLAUDE_PLUGIN_ROOT}/references/session-management.md`, the same order `/bpe:brainstorm` writes, under `# <title>`: `## Starting context`, `## Project overview`, `## Invariants`, `## Available tooling`, `## Roadmap / phase log`, `## Goals`, `## Non-goals`, `## Component boundaries`, `## Success criteria`.
    `## Starting context` records the step 3 context answer verbatim.
    `## Project overview` carries the mission (what the project is and where the user wants it to go); there is no separate mission section.
@@ -96,7 +97,7 @@ spec.md is permanent and edited in place, so drift accumulates between phases; r
 4. Ask only about contradictions, one question at a time: a goal the code has plainly delivered or abandoned, an invariant the code no longer honors, a tool that no longer applies.
    Do not re-run the blindspot pass or the full Q&A; resync confirms reality, it does not re-plan intent.
    The one exception is the migration of a phase-shaped spec (Structure Migration step 4), which may re-open the Q&A topics the old file cannot answer.
-5. Write the reconciled spec to a scratch file, show `diff -u spec.md <scratch>`, and move it over spec.md only after the user confirms.
+5. Write the reconciled spec to `<scratch-dir>/spec.md` (the checker reads the artifact type from the filename), run `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/check-artifacts.py <scratch-dir>/spec.md` on it (fix any hard failure before going on), show `diff -u spec.md <scratch>` with the checker's warnings listed beside it, and move it over spec.md only after the user confirms.
    Superseded text is rewritten in place, never appended.
 6. If `.claude/rules/vendored/` exists, refresh it: for each vendored file, obtain the current source text per brainstorm's Vendoring step 3, write it to the scratch directory, and show `diff -u` against the vendored copy.
    Replace only the files the user confirms.

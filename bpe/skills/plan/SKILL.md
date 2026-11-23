@@ -32,7 +32,7 @@ The archive layout and the accomplishment.md format are canonically documented i
 2. `mkdir -p .ai-sessions/<slug>/`
 3. `mv plan.md .ai-sessions/<slug>/plan.md`
 4. `mv todo.md .ai-sessions/<slug>/todo.md`
-5. Write `.ai-sessions/<slug>/accomplishment.md` following the accomplishment.md template in session-management.md. Populate it from the just-moved plan.md and todo.md plus `git log` commit subjects; the template section documents each field.
+5. Write `.ai-sessions/<slug>/accomplishment.md` with the renderer, not by hand. Build a JSON object from the just-moved plan.md and todo.md plus `git log` commit subjects (the template section in session-management.md documents each field; the keys are listed in the script's docstring), then run `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/render-artifact.py accomplishment --output .ai-sessions/<slug>/accomplishment.md < <json-file>`. Write the JSON file to a `mktemp` path outside the repo so it never shows up as an untracked file.
 6. Record the archive in spec.md. Under `**Shipped:**` in `## Roadmap / phase log`, append `- <slug>: <one-line summary> (.ai-sessions/<slug>/)` as the last line, taking the summary from the accomplishment.md title and its Convergence line. If the list still reads `- none yet`, replace that line instead of appending. If spec.md has no `## Roadmap / phase log` section (a spec written before the section existed), skip this step and tell the user; do not add the section here.
 7. Proceed to generate a fresh plan (the rest of this skill) ONLY when `--regen` is also in $ARGUMENTS. Otherwise stop here: tell the user the archive path and that `/bpe:plan` will generate a fresh plan when they are ready.
 
@@ -306,8 +306,12 @@ Store the plan in @plan.md with:
 - The `**Batch:**` line after each section's Tools block
 
 Also create a @todo.md that:
-- Mirrors the plan.md structure with checkboxes
-- Tracks completion of each numbered sub-step
+- Mirrors the plan.md structure with one checkbox per step (not per numbered sub-step)
 - Can be updated by execute-plan as work progresses
+
+Do not write todo.md by hand.
+After plan.md is written, render it: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/render-artifact.py todo --output todo.md`.
+Use `--output`, never a shell redirect onto todo.md: the shell truncates the file before the script reads the `[x]` marks it must carry over.
+Then run `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/check-artifacts.py plan.md todo.md` and repair plan.md until it exits 0, re-rendering todo.md after each repair.
 
 The spec is in the file called @spec.md

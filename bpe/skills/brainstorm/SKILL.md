@@ -129,6 +129,9 @@ Before writing spec.md, run a closure pass:
 
 Once we are done, save the spec as @spec.md.
 In merge mode, write the merged spec to a scratch file, show `diff -u spec.md <scratch>`, and move it over spec.md only after the user confirms (see "Mode: New Spec or Merge").
+Before showing the diff (merge mode) or declaring the spec saved (new-spec mode), run `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/check-artifacts.py <path>/spec.md` on the spec you wrote.
+The checker reads the artifact type from the filename, so write a scratch spec as `spec.md` inside a scratch directory, never under another name.
+A hard failure is fixed before the diff is shown; warnings are listed alongside the diff.
 Write the sections in the canonical order defined under "Spec Section Order (spec.md)" in `${CLAUDE_PLUGIN_ROOT}/references/session-management.md`.
 `/bpe:retrofit` writes the same order, and `/bpe:plan` consumes either without knowing which skill wrote it.
 Under `# <title>`:

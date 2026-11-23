@@ -40,6 +40,7 @@ grep -c '^- \[ \]' todo.md 2>/dev/null || echo 0
 grep -q '^commit-msg\.md$' .gitignore && echo "gitignore commit-msg.md: ok" || echo "gitignore commit-msg.md: MISSING"
 grep -q '^goal\.md$' .gitignore && echo "gitignore goal.md: ok" || echo "gitignore goal.md: MISSING"
 grep -cE '^\*\*(Tools|Validator consults):\*\*' plan.md 2>/dev/null || echo 0
+python3 ${CLAUDE_PLUGIN_ROOT}/scripts/check-artifacts.py plan.md todo.md
 git log --format=%s "$(git merge-base main HEAD)"..HEAD | grep -c '^Apply final sweep fixes$' || echo 0
 ```
 
@@ -60,6 +61,7 @@ The resolved command need not be a test runner; for a prose or config project it
 - Branch is `main` or `master`. Tell the user: "Refusing to run autonomous mode on main. Create a feature branch first: `git checkout -b <branch-name>`."
 - `git status --short` is non-empty. Tell the user: "Refusing to start with uncommitted or untracked changes. The goal loop's interruption recovery resets the tree to HEAD (`git reset --hard && git clean -fd`) and would destroy them. Commit or stash first."
 - `plan.md` or `todo.md` is missing.
+- `check-artifacts.py plan.md todo.md` exits 1. Print its output and tell the user to repair plan.md or todo.md and re-run (re-render todo.md with `render-artifact.py todo --output todo.md` after a plan fix). This includes a legacy plan with no `**Tools:**` line (a `**Validator consults:**` block only) or no `**Batch:**` line; the fix is to add those lines to each section.
 - Zero unchecked items in `todo.md`, and a commit with the subject "Apply final sweep fixes" exists on the branch since main. Tell the user: "The run is finished: every todo item is checked and the final sweep already committed its fixes."
 - Zero unchecked items in `todo.md` in step mode. Tell the user: "Step mode has no final sweep; there is nothing left to run."
 - `commit-msg.md` is not gitignored. Tell the user to add it and re-run.
@@ -103,33 +105,25 @@ Every item in todo.md is checked off; <test-cmd> exits 0 with no failing tests; 
 ## Step 3: Write the `/goal` Argument to `goal.md`
 
 `/goal` enforces a hard **4000-character cap** on its argument.
-STRICTLY enforce it: after substituting every placeholder, count the characters of the assembled file content from the condition line through the final `Mode:` line.
-If the count exceeds 4000, trim the orchestrator prose; NEVER the safety contracts or the verification rules; and recount.
-NEVER write content over 4000 characters to `goal.md`.
+The renderer enforces it: `render-artifact.py goal` exits 1 and prints the length when the assembled text runs over, and writes no output.
+If it exits 1, shorten the `condition` value (the only free-form input) and render again; NEVER trim the safety contracts or the verification rules in the template, and NEVER write over-cap content to `goal.md`.
 The condition leads (the evaluator focuses on its AND clauses); the orchestrator prose follows in the same message.
 The procedure itself lives in `${CLAUDE_PLUGIN_ROOT}/references/validator-protocol.md` "## Orchestrator Playbook", which the orchestrator reads at the start of every turn.
-The template keeps only the condition, the read instruction, and the hard rules, so a procedure change no longer needs goal.md regeneration.
+The template (`${CLAUDE_PLUGIN_ROOT}/templates/goal.md.tmpl`) keeps only the condition, the read instruction, and the hard rules, so a procedure change no longer needs goal.md regeneration.
 
 The user will run `/goal @goal.md`. Claude Code's `@` expansion inlines the file contents as the `/goal` argument, so `goal.md` must contain ONLY the argument body. **The file MUST NOT start with `/goal `** or the expansion would produce `/goal /goal …`.
 
-Use the Write tool to overwrite `goal.md` at the repo root with exactly the content below. Substitute `<condition>`, `<mode>`, `<test-cmd>`, and `<branch>` from steps 1-2. **Plain text only; no fenced code block, no surrounding ruler lines, no leading `/goal `.** The file contents ARE the `/goal` argument:
+Do not write goal.md by hand.
+Build a JSON object with the keys `condition` (from step 2), `mode`, `test_cmd`, and `branch` (from steps 1-2).
+Write it to a `mktemp` path outside the repo, never into the working tree: an untracked file there would read as a dirty tree on the first `/goal` turn.
+Then render it:
 
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/scripts/render-artifact.py goal --output goal.md < <json-file>
 ```
-<condition from step 2>
 
-You're the orchestrator for a validator-aware autonomous BPE run. Loop until the goal condition above is met.
-READ ${CLAUDE_PLUGIN_ROOT}/references/validator-protocol.md "## Orchestrator Playbook" AT THE START OF EVERY TURN and follow it exactly. It holds the per-turn procedure: branch check, interruption check, state machine, validator and fix loop, finalize verification.
-
-SEQUENTIAL DISPATCHES ONLY. One dispatch (Agent or SendMessage) per turn. BPE steps share todo.md, git tree, test suite; parallel dispatches corrupt all three. After one dispatch + verification, YOUR TURN ENDS; the /goal evaluator decides if a new turn begins.
-
-Each batch (a batch of one is a step) is EXACTLY ONE commit. No fixups, amends, or --no-verify. Every commit includes a new .ai-sessions/session-*.md. After a finalize dispatch, verify against the reported Commit SHA (NOT HEAD): git rev-parse HEAD equals it, the commit's file list holds a .ai-sessions/session-*.md, Tests shows exit 0. Any Failure (except a finalize test failure with iter<3: playbook 7b; or a continuation `context exhausted`: playbook 4 cold fallback) or rule violation => echo RESUME and STOP.
-
-Hard rules: SEQUENTIAL only. Never /clear or /compact except on CHECKPOINT. On CHECKPOINT, echo it and STOP. Never commit on the subagent's behalf, even on Failure. Stop after 50 successful step completions with "dispatch cap reached".
-
-RESUME: on any stop except CHECKPOINT, echo the "### RESUME" block from the playbook verbatim.
-
-Mode: <mode>. Test: <test-cmd>. Branch: <branch>.
-```
+The output is plain text only: no fenced code block, no surrounding ruler lines, no leading `/goal `. The file contents ARE the `/goal` argument.
+Count the characters of the written file for the report line below (`wc -m goal.md`).
 
 After writing the file, print this in user-facing text; concise, no fenced /goal block, no tilde rulers, no inlined contents:
 
@@ -194,6 +188,6 @@ Re-run `/bpe:goal` before `/goal @goal.md` if any of these changed since the las
 - **Environment.** Test runner switched, branch was renamed, or plan.md's section names changed.
 - **Plugin file fix.** Editing a subagent file (fresh per dispatch) doesn't need regeneration.
   Editing `references/validator-protocol.md` "## Orchestrator Playbook" takes effect on the next turn with no regeneration.
-- **Template change.** Editing the goal.md template in Step 3 still requires re-running `/bpe:goal` to rewrite goal.md.
+- **Template change.** Editing `templates/goal.md.tmpl` still requires re-running `/bpe:goal` to rewrite goal.md.
 
 Do NOT `/goal clear` unless you want to abandon the current goal entirely. `clear` resets the evaluator's state; the next `/goal @goal.md` starts a fresh loop and the transcript loses the failure context.
