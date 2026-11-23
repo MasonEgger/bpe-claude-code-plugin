@@ -99,7 +99,7 @@ The orchestrator and `/goal` evaluator parse these fields from the executor's re
 | `Applied:` | Count of block+warn findings actually fixed. |
 | `Deferred:` | `none` or `rule1: reason; rule2: reason` for findings that would not fix without breaking tests. |
 | `Tests:` | Command + exit `0` + result. Green mandatory. |
-| `Delta:` | `<base>..<head>`: two tree ids from the tree snapshot command in `agents/step-executor.md`, taken before the first edit and after the last. `none` when the command failed. The orchestrator passes the value to the next validator pass as `Fix delta:`. |
+| `Delta:` | `<base>..<head>`: two tree ids from the tree snapshot command in "Fix Detail" below, taken before the first edit and after the last. `none` when the command failed. The orchestrator passes the value to the next validator pass as `Fix delta:`. |
 | `Tree:` | Fixed value: `dirty`. |
 | `Ready:` | Fixed string `for re-validation`. |
 | `Blockers:` | Same as implement. |
@@ -178,3 +178,90 @@ Any check fails => `BPE rule violation: <details>`, echo RESUME, STOP. The exact
 - Every commit in the loop includes a new `.ai-sessions/session-*.md`.
 - Exactly one commit per finalize dispatch. No amends, no fixups, no `--no-verify`.
 - Sequential dispatches only. One `Agent` call per orchestrator turn.
+
+## Procedure Detail (Moved from the Agent)
+
+`agents/step-executor.md` keeps the per-mode procedures short and points here for the paragraphs below.
+
+### Opening Reads
+
+This protocol is the source of truth for the mode contracts, hard invariants, report field semantics, and orchestrator verification steps your dispatch must satisfy.
+Echo the routed mode in user-facing text before pre-flight so the orchestrator transcript captures it.
+Also read `${CLAUDE_PLUGIN_ROOT}/references/validator-protocol.md` once at the top of every dispatch. It defines the whole-loop state machine you live inside and the findings schema `mode=fix` consumes.
+The `/goal` evaluator on the parent session sees ONLY your final report content as it lands in the parent transcript. Surface every fact the evaluator needs to verify completion.
+Read the dispatch prompt for a `Mode:` line. Branch on its value: `Mode: implement`, `Mode: fix`, and `Mode: finalize` route to the section of that name; no `Mode:` line routes to "Bundled (backwards compatible)".
+Bundled is emitted when the dispatch prompt has no `Mode:` line and is retained for pre-validator callers.
+Its step 3 runs steps 1-8 of `Mode: finalize` (all except the Finalize-Report emission).
+
+### Continuations
+
+A continuation message (a later `Mode: fix` or `Mode: finalize` sent to you after implement) skips re-reading `step-executor-protocol.md` and `validator-protocol.md` (the two opening paragraphs) when they are already in context.
+A continuation that cannot proceed because its context is exhausted returns `Failure: context exhausted`; the orchestrator then falls back to a cold dispatch.
+
+### Following a Referenced Skill File
+
+The procedures reference markdown files at `${CLAUDE_PLUGIN_ROOT}/skills/*/SKILL.md` and `${CLAUDE_PLUGIN_ROOT}/references/*.md`.
+"Follow" means: Read the markdown file with the Read tool, then execute its numbered procedure inline as your own work.
+Do NOT attempt to invoke the corresponding slash command (e.g. `/bpe:execute-plan`, `/bpe:session-summary`, `/bpe:commit-message`).
+You are a subagent with no user-input channel; slash commands cannot be invoked from here.
+If a procedure step says "use the X tool" or "run command Y", do that directly.
+If it says "ask the user" (execute-plan steps 6, 8, and 11 do this), see the "No user questions" invariant above.
+
+### Implement Detail
+
+For each step, execute the sub-steps as written in plan.md.
+Follow the execute-plan numbered procedure inline, run the step's Verify and the fence check before starting the next step, and check off each step in todo.md as it lands.
+The branch re-check is defense in depth.
+Capture the test result and the `git diff --shortstat` output for the report.
+The clean-tree check echoes the offending output on abort.
+If the test run is not exit 0, do not hand a red diff to the validator.
+A dirty tree at implement start means the prior batch did not finalize, OR the orchestrator broke SEQUENTIAL DISPATCHES.
+The execute-plan skill's step 8 checks the diff against spec.md's fences (Invariants, Non-goals, Deferred); where that step says to stop and ask the user, you instead abort with `Failure:` naming the fence and the files, per the protocol.
+Never work around a fence.
+Honor whichever template shape the step declares (Feature RED/GREEN/REFACTOR or Task Scope/Tooling/Do/Verify/Document), then mark the todo item.
+Deviations log: if your work deviated from plan.md's prescription for a step (edge case, blocked path, better approach found mid-work), append an entry to `.ai-sessions/implementation-notes.md` under a `## Step N` heading.
+Format: `- Plan said: <what>` / `- Deviated: <what actually happened>` / `- Impact: <consequence>`.
+If no deviation, skip.
+Create the file if it doesn't exist.
+It is gitignored; never stage it.
+
+### Fix Detail
+
+The orchestrator paste-includes a JSON block tagged `findings`.
+Group findings: separate `block` and `warn` (must fix) from `info` (record only; the orchestrator hands `info` to `mode=finalize` for the commit body; do not fix here).
+For each block or warn finding, read the file and the surrounding context, apply the fix, and run the test suite.
+Prefer the `suggested_fix` field when present and correct; use judgment when it is absent or wrong.
+Cite the finding's `rule` in your user-facing text.
+If red, fix forward within reason.
+If you can't make tests green within a handful of attempts on this finding, record it as deferred and continue with the next finding.
+Tests MUST be green by end of dispatch.
+Capture exit code and result of the final test run.
+
+Tree snapshot command.
+It prints a tree id for the working tree, untracked files included, and changes neither the real index nor any file:
+
+```bash
+tmp="$(mktemp)" && cp "$(git rev-parse --git-path index)" "$tmp" && GIT_INDEX_FILE="$tmp" git add -A && GIT_INDEX_FILE="$tmp" git write-tree; rm -f "$tmp"
+```
+
+Run it from the repo root, once before the first edit (the base id) and once after the last edit (the head id).
+The next validator pass turns the two ids into the exact fix delta with `git diff <base> <head>`.
+A failure here never fails the dispatch; it only costs the next validator pass its delta.
+
+### Finalize Detail
+
+Some global pre-commit hooks reject any commit without a new `.ai-sessions/session-*.md`; this is compatible with the one-commit-per-batch rule but incompatible with `--no-verify` shortcuts.
+The final test run is your last chance to catch issues.
+The tree-state check expects a non-empty `git status --short`, since an empty one means there is nothing to commit.
+The session-summary slug makes files group naturally in `.ai-sessions/`.
+Staging item (b), `todo.md`, is the file which `Mode: implement` updated; it carries every checked step of the batch.
+`commit-msg.md` is gitignored, but be explicit: never stage it.
+The session-summary procedure absorbs deviations from `.ai-sessions/implementation-notes.md` into the summary and clears the absorbed section.
+Lessons: be conservative; most batches add zero lessons.
+`commit-msg.md` is gitignored and persists between commits, so a stale message from a prior commit will silently ride along into yours if you skip regenerating it.
+Lessons: read `${CLAUDE_PLUGIN_ROOT}/references/session-management.md` and apply its "Capturing Lessons" rules inline to append to `.ai-sessions/lessons.md`.
+The commit subject names the batch, and the body lists each step's title on its own line.
+If the dispatch prompt contained an `Info findings:` block, append a corresponding short section to the commit message body listing each info finding's rule and message on its own line.
+For `Step: sweep` (the final sweep's fixes), stage the fixed files and the session summary.
+Push goes to the current branch's upstream; if push fails (auth, conflict, hook), do NOT retry; capture the error verbatim in your report and stop.
+Skip `/init`: it is too heavy per batch; the user runs it manually after the goal converges.

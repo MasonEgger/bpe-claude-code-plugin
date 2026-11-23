@@ -336,7 +336,7 @@ Detail beyond the cap belongs in `suggested_fix` or `reference`, not in `message
 Findings the validator produces by running a declared linter use the same JSON schema as skill- and MCP-sourced findings; there is no linter-specific shape, and all sources land in the same findings block.
 The `rule` field carries the linter check ID (e.g., `vale.OverusedPhrases`, `ansible-lint.no-changed-when`).
 Severity maps from the linter's own levels: `block` for errors, `warn` for warnings, `info` for suggestions; a linter that emits errors only maps every hit to `block`.
-The parsing and mapping procedure lives in `agents/validator.md` step 5 (Run declared linters).
+The parsing and mapping procedure is step 5 of `agents/validator.md` (Run declared linters) and the "Linter Output Mapping" subsection of "Validator Agent Detail (Moved from the Agent)" below.
 Linters are declared per section or per step in plan.md; see the "Tools block" section below for the declaration format.
 A linter that fails to run (not installed, config missing) is recorded in the block's `notes`, not emitted as a finding.
 
@@ -432,3 +432,79 @@ A section whose Tools block is `none` gets no validator dispatch and relies on t
 - Executor `mode=finalize` is the only mode that commits or pushes.
 - Orchestrator never commits, never edits, never bypasses the iteration cap.
 - All findings blocks pass through `scripts/validate-findings.py` before being acted on.
+
+## Validator Agent Detail (Moved from the Agent)
+
+`agents/validator.md` keeps the invariants, inputs, procedure, and output format, and points here for the paragraphs below.
+
+### Intro and Inputs
+
+Read `${CLAUDE_PLUGIN_ROOT}/references/validator-protocol.md` once at the top of every invocation. It is the source of truth for the findings schema, severity semantics, and the dispatch state machine you live inside.
+Read-only means no `Edit`, no `Write`, no `git add`, no `git commit`, no `git push`. `disallowedTools` removes `Write`, `Edit`, and `NotebookEdit` so file edits are impossible; the no-`git add`/`git commit`/`git push` rule is enforced by this protocol, since `Bash` cannot be narrowed by a specifier.
+Running linters declared in the section's `Linters:` list is in scope; the project test suite is not.
+The orchestrator parses your final block; anything outside it is noise.
+Read the changed files in full with the Read tool; the diff alone misses surrounding context that often matters for domain rules.
+`.ai-sessions/implementation-notes.md`: any `## Step N` section corresponds to a documented mid-step deviation from plan.md; treat those as accepted context when evaluating the diff, not as findings to flag. File format is documented in the "implementation-notes.md Format" section of `${CLAUDE_PLUGIN_ROOT}/references/session-management.md`.
+The executor's `mode=fix` parses your output; the orchestrator gates the fix loop on your verdict.
+Parse the dispatch prompt fields at the top of your turn.
+Echo what you parsed in user-facing text so the orchestrator transcript captures it.
+Verify your understanding of the schema and severity ladder.
+The executor verifies the test suite; you verify the diff against domain rules.
+Output is the findings block with no prose preamble and no follow-up offers.
+
+### Linter Output Mapping
+
+For each `Linters:` entry, run the command as a subprocess via Bash against the working tree. Capture stdout and stderr. Parse the output into findings per "Findings schema (canonical)" above:
+
+- severity: map from the linter's own severity levels. `block` for errors, `warn` for warnings, `info` for suggestions. If the linter emits errors only, treat every hit as `block`.
+- file: the repo-relative path from the linter's output.
+- line: the line number, if the linter emits one.
+- rule: the linter check ID (e.g., `vale.OverusedPhrases`, `ansible-lint.no-changed-when`).
+- message: the one-line description from the linter.
+- reference: the linter config path or a documentation URL, if available.
+
+Emit these findings alongside the skill/MCP-sourced findings in the same block. If a linter fails to run (not installed, config missing), record the failure in `notes` and continue with the remaining linters; a linter that cannot run is not a hard failure.
+
+### Re-Check
+
+When `Previous findings:` is present:
+
+First confirm that each earlier `block` and `warn` is resolved, and report any that is not under the same `rule`.
+Then read the fix delta (`git diff <base> <head>`, from `Fix delta:`) and review what the fix added or changed with the same care as new work, because a fix can break a rule somewhere else.
+Then review the rest of the diff as on a first pass.
+The earlier findings tell you what was already seen; they do not limit what you may report.
+A `finalize-test-failure` finding in `Previous findings:` came from the orchestrator after a red finalize test run.
+You never run tests, so do not try to confirm it resolved; read the fix delta for it and review the diff as usual.
+
+### Thorough Passes
+
+Report every finding in this pass.
+Review the whole diff, every step of the batch, before you assemble the block, and report each `block` and `warn` you find.
+Do not stop at the first finding, and do not hold one back for a later pass: each extra pass costs a full fix round, and the batch has a small cap on passes.
+
+Walk each new flow end to end.
+When the diff adds or changes a procedure, a state machine, a contract, or a protocol, trace it from its trigger to every exit against the rules it touches elsewhere in the repo.
+Report each place where two files now state the same rule differently.
+
+Hold the severity bar while you do.
+A thorough pass is still a grounded one: a preference with no behavioral consequence is `info` at most, per "Severity guidance" above.
+
+### Anti-patterns
+
+- Do not report style nits the consulted skill or MCP does not actually call out. Grounded findings only.
+- Do not run the test suite. That is the executor's job. If the diff appears to break tests, that is a tests problem, not a validator problem. Declared linters and the findings-block validation script are the only subprocesses you run beyond obtaining the diff.
+- Do not emit findings without a `rule` for `block` severity. Block-level findings must name the rule they violate so the user can verify the call.
+- Do not stack many `info` findings to look thorough. Info is for noteworthy context, not commentary.
+- Do not ration findings across passes.
+  One thorough pass costs less than three partial ones, and a finding you saw and held back is the most expensive kind.
+- Do not edit the diff. You have no write tools; if you find yourself wanting to, you have misread the protocol.
+
+### What the Orchestrator Does with Your Output
+
+The orchestrator validates your block, reads `verdict`, and either:
+
+- dispatches `step-executor mode=fix` with your findings (verdict `block` or `warn`, under the iteration cap),
+- stops with Failure (verdict `block` or `warn`, at the iteration cap: pass 3 or 4 with no drop in the `block` and `warn` count, or pass 5),
+- dispatches `step-executor mode=finalize` (verdict `clean`, or only `info` findings present).
+
+This is documented elsewhere in this file ("Iteration cap"). If your understanding of any step in the agent drifts from this file, this file wins.
