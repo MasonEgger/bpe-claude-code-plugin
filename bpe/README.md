@@ -10,11 +10,11 @@ This plugin packages the BPE loop - a structured workflow for building software 
 
 | Command | Purpose |
 |---|---|
-| `/bpe:brainstorm` | Iterative Q&A to develop a project specification (`spec.md`). When a spec already exists, merges the next phase into it (phase-only Q&A, diff shown before saving). Proposes invariants, sorts adjacent work into never / later / now, and on shared repos offers to vendor your rules for contributors; all confirmed in one question |
-| `/bpe:retrofit` | Retrofit a BPE-compatible `spec.md` onto an existing project that lacks one. Reads repo state, runs a shortened Q&A on the gaps; pass `--resync` to reconcile an existing spec to the code (and refresh vendored rules), or `--replace` to overwrite it |
-| `/bpe:plan` | Transform spec into implementation roadmap (`plan.md` + `todo.md`). Refuses when `plan.md` already exists: pass `--archive` to preserve it under `.ai-sessions/` before regenerating, or `--regen` to discard and regenerate. Dispatches `bpe:cheap-research` for external tool discovery by default; pass `--no-discover` to skip it. Drafts inside the spec's fences (Invariants, Non-goals, Deferred) and refuses to plan around them; `--archive` also records the retired plan under the spec's `Shipped:` list |
+| `/bpe:brainstorm` | Iterative Q&A to develop a project specification (`spec.md`). When a spec already exists, merges the change into it as feature entries and `Planned (ITEM):` sentences under a named `Upcoming:` item (change-only Q&A, diff shown before saving). Proposes invariants, sorts adjacent work into never / later / now, and on shared repos offers to vendor your rules for contributors; all confirmed in one question |
+| `/bpe:retrofit` | Retrofit a BPE-compatible `spec.md` onto an existing project that lacks one. Reads repo state (code, docs, changelog, public API), runs a shortened Q&A on the gaps, and builds feature-indexed Goals; pass `--resync` to reconcile an existing spec to the code (and refresh vendored rules), or `--replace` to overwrite it |
+| `/bpe:plan` | Transform spec into implementation roadmap (`plan.md` + `todo.md`). Refuses when `plan.md` already exists: pass `--archive` to preserve it under `.ai-sessions/` before regenerating, or `--regen` to discard and regenerate. Dispatches `bpe:cheap-research` for external tool discovery by default; pass `--no-discover` to skip it. Drafts inside the spec's fences (Invariants, Non-goals, Deferred) and refuses to plan around them; `--archive` also records the retired plan under the spec's `Shipped:` list and folds its `Planned` sentences into Goals as current behavior. With a `### Feature Status` table in Goals, plans the named `Upcoming:` item's `Planned (ITEM):` sentences and stops when nothing is marked |
 | `/bpe:execute-plan` | Implement one step at a time following the plan's sub-steps: TDD Feature steps or checklist Task steps. Checks the diff against the spec's fences before marking the step done |
-| `/bpe:gh-issue` | Fetch a GitHub issue and route to brainstorm or plan |
+| `/bpe:gh-issue` | Fetch a GitHub issue and route to brainstorm or plan based on whether it follows the issue format. The brainstorm route enters merge mode when `spec.md` exists; the plan route records the change as `Planned` sentences before planning |
 | `/bpe:commit-message` | Generate a commit message explaining what was changed |
 | `/bpe:session-summary` | Generate session recap and capture lessons learned |
 | `/bpe:handoff` | Compact the current conversation into an ephemeral handoff document for a fresh agent |
@@ -47,7 +47,7 @@ The underlying file layout moved from `commands/<name>.md` to `skills/<name>/SKI
 ## The Spec
 
 `spec.md` is permanent.
-It describes what the project should be right now, is edited in place as the project evolves, and is never replaced per phase; plans and todos are the per-phase artifacts, archived under `.ai-sessions/<slug>/` when a phase ends.
+It describes the project as it behaves today and what is planned, is edited in place as the project evolves, and is never replaced per phase; plans and todos are the per-phase artifacts, archived under `.ai-sessions/<slug>/` when a phase ends.
 `/bpe:brainstorm` and `/bpe:retrofit` write the same nine sections in the same order, so `/bpe:plan` consumes either:
 
 | Section | Holds |
@@ -56,18 +56,21 @@ It describes what the project should be right now, is edited in place as the pro
 | `## Project overview` | What the project is and where it is going |
 | `## Invariants` | Rules that hold across every phase. Checkable ones carry a key prefix the validator enforces mechanically: `- deps: frozen` (no dependency changes without a spec change) and `- paths: src/**` (changes stay inside these paths). Everything else is prose a reader judges |
 | `## Available tooling` | The MCPs, skills, and verification command the validator and executor use |
-| `## Roadmap / phase log` | `Shipped:` (one line per archived plan, appended by `/bpe:plan --archive`), `Upcoming:` (planned phases), `Deferred:` (work deliberately not done now but worth revisiting) |
-| `## Goals` | The requirements, edited in place |
+| `## Roadmap / phase log` | `Shipped:` (one line per archived plan, appended by `/bpe:plan --archive`), `Upcoming:` (named work items, added by brainstorm, retrofit, the plan route of `/bpe:gh-issue`, or by hand), `Deferred:` (work deliberately not done now but worth revisiting) |
+| `## Goals` | The project as it behaves today, indexed by feature (never by phase, release, or issue). Opens with a `### Feature Status` table (Feature, State, Open Work, Docs, Code), then `### Rules Every Feature Follows`, then one entry per feature holding its surface, contract, options, and decided rules. A sentence starting `Planned (ITEM):` is behavior the named `Upcoming:` item will build and has not built yet; one starting `Known gap:` is a place the code or docs fall short |
 | `## Non-goals` | What the project never does |
-| `## Component boundaries` | Independently implementable components |
-| `## Success criteria` | How you will know it is done |
+| `## Component boundaries` | The independently implementable components, as they stand |
+| `## Success criteria` | How a reader tells the project works, as a standing description |
 
 Work the project is not doing sorts by commitment: never goes in Non-goals, not now goes in Deferred, now goes in Goals.
 Brainstorm proposes the sort for the features an eager agent would otherwise bolt on (password reset next to login, rate limiting next to an endpoint), defaulting to Deferred, and you confirm in one question.
 Non-goals plus Deferred is the scope fence for every phase: the plan writer drafts inside it, the executor checks its diff against it before marking a step done, and the validator checks it again in autonomous runs.
 
-When a spec already exists, `/bpe:brainstorm` runs in merge mode: Q&A for the new phase only, the merged spec written to a scratch file and shown as a diff, saved in place on confirm.
-When the code has drifted from the spec, `/bpe:retrofit --resync` reads the repo again and reconciles the spec to it.
+When a spec already exists, `/bpe:brainstorm` runs in merge mode: Q&A for the change only, which edits or adds feature entries and marks the new behavior `Planned (ITEM):` under an `Upcoming:` item, the merged spec written to a scratch file and shown as a diff, saved in place on confirm.
+`/bpe:plan` plans the named item's `Planned` sentences.
+When a plan converges, `/bpe:plan --archive` folds that item into Goals: the `Planned` prefixes come off, the entries are corrected to what was built, and the status table and `Upcoming:` are updated, shown as a diff before anything is written.
+A spec whose Goals has no `### Feature Status` table keeps the earlier behavior.
+When the code has drifted from the spec, or Goals is still in the phase-named form, `/bpe:retrofit --resync` reads the repo again, reconciles the spec to it, and offers to rebuild Goals into entries.
 
 ## Vendored Rules
 

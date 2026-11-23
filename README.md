@@ -16,7 +16,7 @@ The `python` plugin formerly hosted here moved to a private marketplace in July 
 | `/bpe:plan` | Transform spec into an implementation roadmap (`plan.md` + `todo.md`) of TDD Feature steps and checklist Task steps |
 | `/bpe:execute-plan` | Implement the next unchecked step as written: RED-GREEN-REFACTOR for Feature steps, Scope/Tooling/Do/Verify/Document for Task steps; checks the diff against the spec's fences before marking it done |
 | `/bpe:goal` | Wrap the loop in an autonomous `/goal` run: dispatches a fresh subagent per step, gates each one behind a read-only validator, commits per step |
-| `/bpe:gh-issue` | Fetch a GitHub issue and route to brainstorm or plan based on detail level |
+| `/bpe:gh-issue` | Fetch a GitHub issue and route to brainstorm or plan based on whether it follows the issue format |
 | `/bpe:commit-message` | Generate a commit message explaining what was changed |
 | `/bpe:review` | Generate an HTML view of `spec.md` / `plan.md` / `todo.md` and serve it locally for visual review with annotations |
 | `/bpe:apply-review` | Load saved review feedback and apply changes to the reviewed artifact |

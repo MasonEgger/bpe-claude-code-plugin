@@ -29,6 +29,8 @@ With `--resync`, retrofit instead reconciles an existing spec.md to what the cod
    Read CLAUDE.md if present.
    Read whichever manifest files exist: package.json, pyproject.toml, go.mod, Cargo.toml.
    If the language is detectable from the manifests, read the top-level module docstrings (or equivalent package-level docs) of the main source directories.
+   Go deeper than that, because step 5 writes one Goals entry per feature and an entry needs the surface, the contract, the options and defaults, and the decided rules: read the docs directory, the changelog (a `CHANGELOG.md`, release notes, or the git tags), and the public API (exported names, CLI commands and flags, endpoints, slash commands, files the project writes).
+   For a large repo, list the features first and read each feature's code and docs when its entry is drafted.
    Use what these reveal to pre-fill draft answers, so the Q&A in step 4 asks only about gaps.
    Derive Invariants candidates from the same read; the repo is a higher-signal source than negating interview answers.
    The manifests give the tech stack (language, runtime, primary frameworks, package manager) as prose bullets.
@@ -60,9 +62,15 @@ With `--resync`, retrofit instead reconciles an existing spec.md to what the cod
    Once it is written, run `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/check-artifacts.py spec.md`; fix any hard failure, and list warnings for the user.
    Write the sections in the canonical order defined under "Spec Section Order (spec.md)" in `${CLAUDE_PLUGIN_ROOT}/references/session-management.md`, the same order `/bpe:brainstorm` writes, under `# <title>`: `## Starting context`, `## Project overview`, `## Invariants`, `## Available tooling`, `## Roadmap / phase log`, `## Goals`, `## Non-goals`, `## Component boundaries`, `## Success criteria`.
    `## Starting context` records the step 3 context answer verbatim.
+   `## Goals`, `## Component boundaries`, and `## Success criteria` describe the project as it behaves today, not the first build's wish list; "Goals Section (spec.md)" in the same reference is the canonical definition, so follow it instead of restating it here.
+   Goals opens with the lead paragraph and the `### Feature Status` table, then `### Rules Every Feature Follows`, then one entry per feature at the depth that definition states, built from the step 2 read.
+   Mark behavior the user named as planned with a `Planned (ITEM):` sentence tied to an `**Upcoming:**` item, and a place where the code or docs fall short with a `Known gap:` sentence.
+   `## Component boundaries` describes the components as they stand, and `## Success criteria` states how a reader tells the project works, as a standing description with no per-phase lines.
+   Stage the build, because a deep Goals is a long section: write the Feature Status table first and confirm it, then draft the entries and confirm them in groups of related features.
+   The checker's warnings on Goals shape are advisory; list them for the user and fix the ones that are real.
    `## Project overview` carries the mission (what the project is and where the user wants it to go); there is no separate mission section.
    `## Invariants` holds the rules that hold across every phase: the tech stack the step 2 manifests reveal, plus every constraint the repo or the user marks as non-negotiable (dependencies not to add, patterns to follow, things the project must never do). One bullet per rule.
-   `## Roadmap / phase log` starts with `**Shipped:**` listing one line per existing `.ai-sessions/<slug>/` archive as `- <slug>: <one-line summary> (.ai-sessions/<slug>/)`, or `- none yet` if there are none, `**Upcoming:**` with any later phases the user named in step 4, and `**Deferred:**` with the step 4 out-of-scope answers that are not-now rather than never, one line each with a reason or trigger (or `- none`).
+   `## Roadmap / phase log` starts with `**Shipped:**` listing one line per existing `.ai-sessions/<slug>/` archive as `- <slug>: <one-line summary> (.ai-sessions/<slug>/)`, or `- none yet` if there are none, `**Upcoming:**` with the named work items the user gave in step 4, each one named by the `Planned (ITEM):` sentences that cover it (or `- none`), and `**Deferred:**` with the step 4 out-of-scope answers that are not-now rather than never, one line each with a reason or trigger (or `- none`).
    `## Non-goals` records what the project deliberately does not do, ever; step 4's out-of-scope answers split between here (never) and `**Deferred:**` (not now).
    `## Available tooling` uses the exact section format `/bpe:brainstorm` writes:
 
@@ -93,7 +101,11 @@ spec.md is permanent and edited in place, so drift accumulates between phases; r
 1. Read the whole existing spec.md, then run step 2 (Read repo state) against the current tree.
 2. Check structure: compare the spec's H2 headings against the canonical order under "Spec Section Order (spec.md)" in `${CLAUDE_PLUGIN_ROOT}/references/session-management.md`.
    When sections are missing, renamed, or accreted beyond that list (a pre-0.7 spec, or one edited by hand), run the Structure Migration pass below and fold its output into the same scratch file as the content reconciliation: one diff, one confirm.
-3. Compare what the repo shows against what the spec claims, section by section: `## Project overview` and `## Goals` against what the code does now, `## Invariants` against the manifests and lockfile, `## Available tooling` against the session, `**Shipped:**` against the `.ai-sessions/<slug>/` archives on disk.
+3. Compare what the repo shows against what the spec claims, section by section: `## Project overview` against what the code does now, `## Invariants` against the manifests and lockfile, `## Available tooling` against the session, `**Shipped:**` against the `.ai-sessions/<slug>/` archives on disk.
+   Check `## Goals` entry by entry against the code, the docs, and the changelog, at the depth "Goals Section (spec.md)" states: each entry's surface, contract, options, and decided rules; each `Planned (ITEM):` sentence against whether the code has since built it (a built one loses the prefix) and whether its `**Upcoming:**` item still exists; each `Known gap:` against whether the gap is still open; each feature the code has that no entry covers.
+   When Goals has no `### Feature Status` table, or holds phase-, release-, or issue-named subsections, offer to rebuild it into the entry form.
+   A rebuild is staged: the Feature Status table first, then the entries confirmed in groups of related features, so the user approves the Goals content in parts while the scratch spec is drafted, and the step 5 diff stays the single confirm before anything is written.
+   Report the size of spec.md; when it passes 128 KB, say so and offer to move the longest entries' detail into linked files under the docs, leaving the entry with the surface, contract, and a link.
 4. Ask only about contradictions, one question at a time: a goal the code has plainly delivered or abandoned, an invariant the code no longer honors, a tool that no longer applies.
    Do not re-run the blindspot pass or the full Q&A; resync confirms reality, it does not re-plan intent.
    The one exception is the migration of a phase-shaped spec (Structure Migration step 4), which may re-open the Q&A topics the old file cannot answer.
@@ -112,7 +124,7 @@ Content is preserved or moved with the user's confirmation, never silently dropp
 
 1. Map existing sections onto the canonical nine, preserving their content.
    Mission and overview prose goes to `## Project overview`.
-   Requirement and design sections sort into `## Goals`, `## Component boundaries`, and `## Success criteria`.
+   Requirement and design sections sort into `## Goals`, `## Component boundaries`, and `## Success criteria`; rewrite what lands there as current behavior in feature entries, per "Goals Section (spec.md)" in session-management.md, not as the phase text it came in as.
    Out-of-scope prose splits between `## Non-goals` (never) and `**Deferred:**` (not now); the user confirms that sort.
 2. Classify what maps nowhere.
    Dated addenda, work packages, interview agendas, and research notes are phase content, not project law.
@@ -120,6 +132,8 @@ Content is preserved or moved with the user's confirmation, never silently dropp
 3. Create the missing sections.
    `## Starting context` absent: ask the one context question from Procedure step 3 now and date the answer, so a later reader knows it was recorded at migration rather than at project start.
    `## Invariants`: derive candidates from the repo-state read plus everything the old spec stated as mandatory or forbidden, and confirm them in one question.
+   `## Goals`: when the old spec has no project-level requirements (or only phase-named subsections), build it from the repo: the Feature Status table and `### Rules Every Feature Follows` first, then one entry per feature from the Procedure step 2 read, confirmed in groups, with the staging from Resync step 3.
+   Behavior the old spec described as planned becomes a `Planned (ITEM):` sentence under an `**Upcoming:**` item the user names.
    `## Roadmap / phase log`: build `**Shipped:**` from the `.ai-sessions/<slug>/` archives on disk, one line each summarized from the archive's accomplishment.md; take `**Upcoming:**` from the user; fill `**Deferred:**` from the sort in step 1.
 4. A phase-shaped spec, where the whole file describes one work package rather than the project, migrates the same way.
    The repo-state read and the Procedure step 4 topics supply the project-level content the old file cannot; this is the one case where resync re-opens the shortened Q&A, and only for those gaps.
