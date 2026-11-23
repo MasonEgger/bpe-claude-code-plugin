@@ -2,7 +2,7 @@
 # /// script
 # requires-python = ">=3.11"
 # ///
-# ABOUTME: Deterministic renderer for the BPE artifacts: todo.md, goal.md, and accomplishment.md.
+# ABOUTME: Deterministic renderer for the BPE artifacts: todo.md, goal.md, accomplishment.md, and issues.
 # ABOUTME: Fills the string.Template files in bpe/templates/ and writes the result to stdout; exits 1 on bad input.
 """Render a BPE artifact from a template, so a skill never writes its fixed shape freehand.
 
@@ -10,6 +10,7 @@ Usage:
     render-artifact.py todo [--plan PATH] [--output PATH]
     render-artifact.py goal [--output PATH] < input.json
     render-artifact.py accomplishment [--output PATH] < input.json
+    render-artifact.py issue [--output PATH] < input.json
 
 Output goes to stdout, or to the file named by `--output PATH`, which is written only after every input is read.
 Use `--output todo.md` to refresh an existing todo.md: a shell redirect onto it would truncate the file before the
@@ -34,6 +35,11 @@ Kinds.
                     A list value (what_got_done, deferred, decisions, files, lessons) renders as one `- ` bullet
                     per item; a plain string is accepted for any of them and renders as one bullet.
                     An absent optional list renders as `- none`.
+    issue           Reads a JSON object from stdin with the keys title and sections (a map of heading to body)
+                    and emits the title line, then each section as a `## ` heading and its body, in the order the
+                    numbered list in references/issue-format.md defines.
+                    The order and the required sections are read from that file at run time.
+                    Absent optional sections are skipped; a missing required section or an unknown heading exits 1.
 
 Exit codes:
     0  The artifact was rendered to stdout.
@@ -55,6 +61,9 @@ GOAL_CHAR_CAP = 4000
 FENCE = re.compile(r"^\s*(```|~~~)")
 STEP_HEADING = re.compile(r"^### Step (\d+): (\S.*?)(?: \(task\))?\s*$")
 CHECKED_ITEM = re.compile(r"^- \[x\] (?:Step \d+: )?(.*?)\s*$")
+
+ISSUE_FORMAT_PATH = Path(__file__).resolve().parent.parent / "references" / "issue-format.md"
+ISSUE_SECTION_ITEM = re.compile(r"^\d+\. (.+?) \((required|optional)\)$", re.MULTILINE)
 
 GOAL_KEYS = ("condition", "mode", "test_cmd", "branch")
 ACCOMPLISHMENT_REQUIRED = ("title", "archived", "convergence", "spec_slice", "what_got_done", "files", "lessons")
@@ -228,6 +237,49 @@ def render_accomplishment(stream_text: str) -> str:
     return Template((TEMPLATES_DIR / "accomplishment.md.tmpl").read_text(encoding="utf-8")).substitute(fields)
 
 
+def render_issue(stream_text: str) -> str:
+    """Render a GitHub issue body from a title and its sections.
+
+    Args:
+        stream_text: The JSON object text from stdin, with a title string and a sections map.
+
+    Returns:
+        The title line, then each present section in issue-format.md order.
+
+    Raises:
+        RenderError: The JSON is bad, a required section is missing, or a heading is not in the format.
+    """
+    data = load_json_object(stream_text, ("title", "sections"))
+    sections = data["sections"]
+    if not isinstance(sections, dict):
+        raise RenderError("sections must be a JSON object mapping heading to body")
+    try:
+        defined = [
+            (match[1], match[2] == "required")
+            for match in ISSUE_SECTION_ITEM.finditer(ISSUE_FORMAT_PATH.read_text(encoding="utf-8"))
+        ]
+    except OSError as error:
+        raise RenderError(f"cannot read {ISSUE_FORMAT_PATH}: {error.strerror}") from error
+    known = {heading for heading, _ in defined}
+    for heading in sections:
+        if heading not in known:
+            raise RenderError(f"unknown section: {heading}")
+    for heading, required in defined:
+        if required and heading not in sections:
+            raise RenderError(f"missing required section: {heading}")
+
+    title = data["title"]
+    if not isinstance(title, str) or not title.strip() or "\n" in title.strip():
+        raise RenderError("title must be a non-empty single-line string")
+    for heading, body in sections.items():
+        if not isinstance(body, str) or not body.strip():
+            raise RenderError(f"section body must be a non-empty string: {heading}")
+
+    parts = [title.strip()]
+    parts.extend(f"## {heading}\n\n{sections[heading].strip()}" for heading, _ in defined if heading in sections)
+    return "\n\n".join(parts) + "\n"
+
+
 def main(argv: list[str] | None = None) -> int:
     """Render the requested kind to stdout.
 
@@ -238,7 +290,7 @@ def main(argv: list[str] | None = None) -> int:
         The exit code.
     """
     parser = argparse.ArgumentParser(description="Render a BPE artifact from its template.")
-    parser.add_argument("kind", choices=("todo", "goal", "accomplishment"))
+    parser.add_argument("kind", choices=("todo", "goal", "accomplishment", "issue"))
     parser.add_argument("--plan", type=Path, default=Path("plan.md"), help="plan.md path for the todo kind")
     parser.add_argument(
         "--output",
@@ -252,6 +304,8 @@ def main(argv: list[str] | None = None) -> int:
             text = render_todo(args.plan)
         elif args.kind == "goal":
             text = render_goal(sys.stdin.read())
+        elif args.kind == "issue":
+            text = render_issue(sys.stdin.read())
         else:
             text = render_accomplishment(sys.stdin.read())
     except RenderError as error:

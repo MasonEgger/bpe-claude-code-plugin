@@ -1,4 +1,4 @@
-# ABOUTME: Tests for bpe/scripts/render-artifact.py, the renderer for todo.md, goal.md, and accomplishment.md.
+# ABOUTME: Tests for bpe/scripts/render-artifact.py, the renderer for todo.md, goal.md, accomplishment.md, and issues.
 # ABOUTME: Loads the scripts by path because their hyphenated filenames cannot be imported by name.
 """Tests for the kinds render-artifact.py renders and the drift checks that tie it to the references."""
 
@@ -17,6 +17,7 @@ RENDERER_PATH = REPO_ROOT / "bpe" / "scripts" / "render-artifact.py"
 CHECKER_PATH = REPO_ROOT / "bpe" / "scripts" / "check-artifacts.py"
 TEMPLATES_DIR = REPO_ROOT / "bpe" / "templates"
 SESSION_MANAGEMENT_PATH = REPO_ROOT / "bpe" / "references" / "session-management.md"
+ISSUE_FORMAT_PATH = REPO_ROOT / "bpe" / "references" / "issue-format.md"
 
 TWO_SECTION_PLAN = """# Plan: Demo Plan
 
@@ -302,3 +303,99 @@ class TestAccomplishment:
         template = (TEMPLATES_DIR / "accomplishment.md.tmpl").read_text()
 
         assert headings(template) == headings(block[1])
+
+
+class TestIssue:
+    SECTION_ORDER = [
+        "What Is Wanted",
+        "What We Already Know",
+        "Prior Research and Thoughts",
+        "Changes, File by File",
+        "Out of Scope",
+        "Acceptance Criteria",
+    ]
+    REQUIRED = {
+        "What Is Wanted": "Retry binds.",
+        "What We Already Know": "It loops.",
+        "Acceptance Criteria": "- [ ] Exits 1.",
+    }
+
+    def test_sections_come_out_in_format_order_and_absent_optionals_are_skipped(
+        self, renderer: ModuleType, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        sections = {"Out of Scope": "Ports.", **self.REQUIRED}
+        payload = {"title": "Add a retry limit", "sections": sections}
+
+        code, out, _ = run_with_stdin(renderer, "issue", payload, monkeypatch, capsys)
+
+        assert code == 0
+        assert out.splitlines()[0] == "Add a retry limit"
+        headings = [line.removeprefix("## ") for line in out.splitlines() if line.startswith("## ")]
+        assert headings == ["What Is Wanted", "What We Already Know", "Out of Scope", "Acceptance Criteria"]
+        assert "Retry binds." in out
+
+    def test_missing_required_section_exits_1_naming_it(
+        self, renderer: ModuleType, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        sections = {key: value for key, value in self.REQUIRED.items() if key != "Acceptance Criteria"}
+
+        code, out, err = run_with_stdin(renderer, "issue", {"title": "T", "sections": sections}, monkeypatch, capsys)
+
+        assert code == 1
+        assert out == ""
+        assert "Acceptance Criteria" in err
+
+    def test_unknown_section_exits_1_naming_it(
+        self, renderer: ModuleType, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        sections = {**self.REQUIRED, "Motivation": "Why."}
+
+        code, out, err = run_with_stdin(renderer, "issue", {"title": "T", "sections": sections}, monkeypatch, capsys)
+
+        assert code == 1
+        assert out == ""
+        assert "Motivation" in err
+
+    def test_rendered_headings_follow_the_reference_order(
+        self, renderer: ModuleType, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        reference = ISSUE_FORMAT_PATH.read_text()
+        order = [match[1] for match in re.finditer(r"^\d+\. (.+?) \((?:required|optional)\)$", reference, re.MULTILINE)]
+        sections = dict.fromkeys(reversed(order), "Text.")
+
+        _, out, _ = run_with_stdin(renderer, "issue", {"title": "T", "sections": sections}, monkeypatch, capsys)
+
+        headings = [line.removeprefix("## ") for line in out.splitlines() if line.startswith("## ")]
+        assert headings == order == self.SECTION_ORDER
+
+    @pytest.mark.parametrize("title", ["", "  ", "Two\nlines", ["a"]])
+    def test_bad_title_exits_1(
+        self,
+        renderer: ModuleType,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+        title: object,
+    ) -> None:
+        code, out, err = run_with_stdin(
+            renderer, "issue", {"title": title, "sections": self.REQUIRED}, monkeypatch, capsys
+        )
+
+        assert code == 1
+        assert out == ""
+        assert "title" in err
+
+    @pytest.mark.parametrize("body", ["", "   ", ["a", "b"]])
+    def test_bad_section_body_exits_1_naming_the_section(
+        self,
+        renderer: ModuleType,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+        body: object,
+    ) -> None:
+        sections = {**self.REQUIRED, "What Is Wanted": body}
+
+        code, out, err = run_with_stdin(renderer, "issue", {"title": "T", "sections": sections}, monkeypatch, capsys)
+
+        assert code == 1
+        assert out == ""
+        assert "What Is Wanted" in err

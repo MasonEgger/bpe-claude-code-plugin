@@ -20,10 +20,10 @@ Mirrors plan.md, one checkbox per step; check off each step as it finalizes.
 
 ## Section 3: Structured Issue Format (#48)
 
-- [ ] Step 1: issue-format.md, the GitHub Template, and the Sync Test
-- [ ] Step 2: render-artifact.py for issue
-- [ ] Step 3: The /bpe:new-issue Skill
-- [ ] Step 4: /bpe:gh-issue Routes on the Format
+- [x] Step 1: issue-format.md, the GitHub Template, and the Sync Test
+- [x] Step 2: render-artifact.py for issue
+- [x] Step 3: The /bpe:new-issue Skill
+- [x] Step 4: /bpe:gh-issue Routes on the Format
 
 ## Section 4: What the Permanent Spec's Goals Holds (#55)
 
