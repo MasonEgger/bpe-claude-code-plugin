@@ -27,9 +27,9 @@ Mirrors plan.md, one checkbox per step; check off each step as it finalizes.
 
 ## Section 4: What the Permanent Spec's Goals Holds (#55)
 
-- [ ] Step 1: The Goals Definition in session-management.md
-- [ ] Step 2: Brainstorm Writes Entries, Not Phases
-- [ ] Step 3: Plan From the Marker, Fold In on Archive
+- [x] Step 1: The Goals Definition in session-management.md
+- [x] Step 2: Brainstorm Writes Entries, Not Phases
+- [x] Step 3: Plan From the Marker, Fold In on Archive
 - [ ] Step 4: gh-issue Routes Through Merge Mode and Planned Sentences
 - [ ] Step 5: Retrofit Builds and Checks Goals
 - [ ] Step 6: Review Units and README for Goals

@@ -11,7 +11,7 @@ The `python` plugin formerly hosted here moved to a private marketplace in July 
 
 | Command | Purpose |
 |---|---|
-| `/bpe:brainstorm` | Iterative Q&A to develop a project specification (`spec.md`), or to merge the next phase into an existing one |
+| `/bpe:brainstorm` | Iterative Q&A to develop a project specification (`spec.md`), or to merge a change into an existing one as feature entries and Planned sentences |
 | `/bpe:retrofit` | Retrofit a BPE-compatible `spec.md` onto an existing project that lacks one, via a shortened Q&A focused on the gaps; `--resync` reconciles an existing spec to the code |
 | `/bpe:plan` | Transform spec into an implementation roadmap (`plan.md` + `todo.md`) of TDD Feature steps and checklist Task steps |
 | `/bpe:execute-plan` | Implement the next unchecked step as written: RED-GREEN-REFACTOR for Feature steps, Scope/Tooling/Do/Verify/Document for Task steps; checks the diff against the spec's fences before marking it done |

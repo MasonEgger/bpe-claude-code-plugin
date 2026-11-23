@@ -66,7 +66,7 @@ Otherwise, detect whether this session was driven by `/goal` per the "Goal Conte
 - `todo.md` has a non-zero count of checked top-level items.
 
 If all hold, ask: "Archive plan.md and todo.md to `.ai-sessions/<slug>/`?"
-- On yes: follow the Archive routine in `${CLAUDE_PLUGIN_ROOT}/skills/plan/SKILL.md` inline, including its slug confirmation, but stop after writing `accomplishment.md`. Do not run the routine's final step (generating a fresh plan); that belongs to `/bpe:plan`.
+- On yes: follow the Archive routine in `${CLAUDE_PLUGIN_ROOT}/skills/plan/SKILL.md` inline, including its slug confirmation, through the `**Shipped:**` line and the fold-in into Goals (which waits for the user's confirmation of the spec diff). Stop before the routine's last step (generating a fresh plan); that belongs to `/bpe:plan`.
 - On no: leave `plan.md` and `todo.md` at the repo root, and note that the next `/bpe:plan` invocation will refuse until they are archived (or discarded with `--regen`).
 
 If any condition fails, skip silently.

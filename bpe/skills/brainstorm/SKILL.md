@@ -1,6 +1,6 @@
 ---
 name: brainstorm
-description: Iterative Q&A to develop a thorough project specification (spec.md), or to merge the next phase into an existing one
+description: Iterative Q&A to develop a thorough project specification (spec.md), or to merge a change into an existing one as feature entries and Planned sentences
 model: opus
 disable-model-invocation: true
 ---
@@ -16,7 +16,7 @@ Let's do this iteratively and dig into every relevant detail. Remember, only one
 Check for `spec.md` at the repo root before anything else.
 
 - Absent: new-spec mode. Run every section below in order and write a fresh spec.md at the end.
-- Present: merge mode. spec.md is permanent and edited in place, so this run adds a phase to it rather than replacing it. Read the whole spec first. Skip the blindspot pass unless the user says their context changed. Scope the Q&A to the new phase only: what this phase adds or changes, not the whole project again. Run the constraints, adjacency, and tool discovery passes against the new goals only; existing Invariants, Non-goals, and Deferred entries are inputs, not questions (a Deferred item this phase takes on moves into Goals; a Goal this phase retires moves to Deferred or Non-goals, by the user's call). Then follow "Saving" in merge mode: write the merged spec to a scratch file, show `diff -u spec.md <scratch>`, and move it over spec.md only after the user confirms. Superseded requirements are rewritten in place, never appended as amendments, so the spec always reads as current intent on one pass.
+- Present: merge mode. spec.md is permanent and edited in place, so this run edits it rather than replacing it. Read the whole spec first. Skip the blindspot pass unless the user says their context changed. Scope the Q&A to the change only: what it adds or alters, not the whole project again. When the spec's `## Goals` has a `### Feature Status` table, the change lands in the feature entries (see "Goals Section (spec.md)" in `${CLAUDE_PLUGIN_ROOT}/references/session-management.md`): edit the entry of each feature the change touches, add an entry for a new feature, and mark every new or changed behavior with a `Planned (ITEM):` sentence tied to a named `**Upcoming:**` item that this same run adds to `## Roadmap / phase log`. The Planned sentences of that item are the scope `/bpe:plan` plans from. Add a row to the Feature Status table for a new feature. The diff shown before saving adds no heading named for a phase, release, or issue. Run the constraints, adjacency, and tool discovery passes against the change only; existing Invariants, Non-goals, and Deferred entries are inputs, not questions (a Deferred item this phase takes on moves into Goals; a Goal this phase retires moves to Deferred or Non-goals, by the user's call). Then follow "Saving" in merge mode: write the merged spec to a scratch file, show `diff -u spec.md <scratch>`, and move it over spec.md only after the user confirms. Superseded requirements are rewritten in place, never appended as amendments, so the spec always reads as current intent on one pass. A spec whose Goals has no Feature Status table keeps the earlier merge behavior (new goals go into `## Goals` in place, with no markers); suggest `/bpe:retrofit --resync` to rebuild Goals into entries.
 
 To start a spec over instead of merging, delete or move spec.md first; there is no overwrite flag.
 
@@ -59,7 +59,7 @@ Keep the list short. Constraints reduce the executor's latitude, and the Project
 
 For each goal the Q&A produced, list the three to five features an eager agent would bolt on without being asked: the nearest neighbors of the feature (password reset, email verification, and social login next to login; rate limiting and pagination next to an endpoint; a settings page next to a user model). These are the highest-probability scope leaks, which is what makes the list useful. It is a precision aid for the plan writer and the validator, not an inventory of everything the project will never do.
 
-Propose a bucket for each candidate: never (`## Non-goals`), not now (`**Deferred:**` under `## Roadmap / phase log`), or now (promote into `## Goals`). Default is Deferred. Do not ask yet; the single confirm in Tool discovery carries the sort.
+Propose a bucket for each candidate: never (`## Non-goals`), not now (`**Deferred:**` under `## Roadmap / phase log`), or now (promote into `## Goals`, as a `Planned (ITEM):` sentence in the affected feature's entry when the table exists). Default is Deferred. Do not ask yet; the single confirm in Tool discovery carries the sort.
 
 ## Tool discovery and the single confirm (before saving spec.md)
 
@@ -140,10 +140,10 @@ Under `# <title>`:
 2. `## Project overview`: what the project is and where it is going. This carries the mission; there is no separate mission section.
 3. `## Invariants`: the list confirmed in the single question, one bullet per rule: checkable rules with their key prefix (`deps:`, `paths:`), prose rules, the tech stack, and one pointer bullet per vendored rules file (or one line naming the governing skill when nothing was vendored).
 4. `## Available tooling`: the confirmed set from Tool discovery, in the format shown above.
-5. `## Roadmap / phase log`: `**Shipped:**` with `- none yet` for a new project, `**Upcoming:**` with any later phases the user named, and `**Deferred:**` with every piece of work the user sorted as not-now during the Q&A, one line each with a one-line reason or trigger (or `- none`). The archive routine appends shipped phases later; do not pre-fill them.
-6. `## Goals`: the requirements, concrete enough to plan from. Edited in place in later phases, never appended to.
+5. `## Roadmap / phase log`: `**Shipped:**` with `- none yet` for a new project, `**Upcoming:**` with the item that this first build's `Planned (ITEM):` sentences name, plus any later items the user named, and `**Deferred:**` with every piece of work the user sorted as not-now during the Q&A, one line each with a one-line reason or trigger (or `- none`). The archive routine appends shipped phases later; do not pre-fill them.
+6. `## Goals`: the project as it behaves today, one entry per feature at planner depth, defined under "Goals Section (spec.md)" in the reference. New-spec mode writes the lead paragraph, the `### Feature Status` table (columns Feature, State, Open Work, Docs, Code), `### Rules Every Feature Follows`, and one `### <Feature>` entry per feature from the start; behavior not built yet carries a `Planned (ITEM):` sentence tied to an `**Upcoming:**` item. Edited in place later, never appended to, and never given a heading named for a phase, release, or issue.
 7. `## Non-goals`: what the project deliberately does not do, ever. Permanent exclusions only; work that is merely not-now belongs in `**Deferred:**` under `## Roadmap / phase log`.
-8. `## Component boundaries`: the independently implementable components with their inputs, outputs, and responsibilities.
-9. `## Success criteria`: how the user will know the project is done.
+8. `## Component boundaries`: a standing description of the independently implementable components with their inputs, outputs, and responsibilities, edited in place, not a per-phase list.
+9. `## Success criteria`: a standing description of how a reader tells the project works, edited in place, not a per-phase list.
 
 Here's the idea:

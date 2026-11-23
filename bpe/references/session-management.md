@@ -1,6 +1,6 @@
 # Session Management
 
-This file is the single source of truth for the format and workflow of session artifacts in `.ai-sessions/`. The `/bpe:session-summary`, `/bpe:execute-plan`, and `/bpe:handoff` commands all read it directly via `${CLAUDE_PLUGIN_ROOT}/references/session-management.md`. It also canonically documents spec.md: the full section order (see "Spec Section Order (spec.md)" below) and the `## Starting context`, `## Available tooling`, `## Invariants`, and `## Roadmap / phase log` sections (each defined in its own section below), which `/bpe:brainstorm` and `/bpe:retrofit` write, and the plan-archive layout that `/bpe:plan --archive` writes (see "Plan Archives (accomplishment.md)" below).
+This file is the single source of truth for the format and workflow of session artifacts in `.ai-sessions/`. The `/bpe:session-summary`, `/bpe:execute-plan`, and `/bpe:handoff` commands all read it directly via `${CLAUDE_PLUGIN_ROOT}/references/session-management.md`. It also canonically documents spec.md: the full section order (see "Spec Section Order (spec.md)" below) and the `## Starting context`, `## Available tooling`, `## Invariants`, `## Roadmap / phase log`, and `## Goals` sections (each defined in its own section below), which `/bpe:brainstorm` and `/bpe:retrofit` write, and the plan-archive layout that `/bpe:plan --archive` writes (see "Plan Archives (accomplishment.md)" below).
 
 ## Purpose
 
@@ -247,6 +247,7 @@ This section is the canonical definition of the archive layout and the accomplis
 - **Slug**: 2-3 word kebab-case, proposed from plan.md's stated goals and the checked todo items (`init` or `v1` for a project's first archive). The user confirms or edits the slug before any file moves.
 - **plan.md / todo.md**: the retired files, moved verbatim from the repo root. Do not edit them during the move.
 - **accomplishment.md**: written fresh at archive time per the template below. It is the durable record of what the plan achieved; the moved files are the raw material.
+The `## Spec Slice` is captured before the Archive routine's fold-in rewrites `## Goals`, because after the fold-in the `Planned (ITEM):` sentences it quotes are gone from the spec.
 
 ### accomplishment.md Template
 
@@ -304,11 +305,12 @@ This list is canonical; the two skills conform to it.
 9. `## Success criteria`
 
 `## Project overview` carries the project's mission, what it is and where it is going; there is no separate mission section.
-`## Starting context`, `## Available tooling`, `## Invariants`, and `## Roadmap / phase log` are each defined in their own section below.
-The remaining sections hold the requirements.
-`## Goals` is the What, edited in place as the project evolves rather than appended to.
+`## Starting context`, `## Available tooling`, `## Invariants`, `## Roadmap / phase log`, and `## Goals` are each defined in their own section below.
+`## Goals` is the What: the project as it behaves today, one entry per feature, edited in place as the project evolves rather than appended to (see "Goals Section (spec.md)").
 `## Non-goals` records what the project deliberately does not do, permanently.
-`## Component boundaries` and `## Success criteria` carry the testable shape of the work.
+`## Component boundaries` is a standing description of the project's independently implementable components, with their inputs, outputs, and responsibilities, edited in place.
+`## Success criteria` is a standing description of how a reader tells the project works, edited in place.
+Neither of those two is a per-phase list.
 Work the project is not doing sorts into three places by commitment: never goes in `## Non-goals`, not now (revisit later) goes in the `**Deferred:**` list of `## Roadmap / phase log`, and now goes in `## Goals`.
 Nothing phase-local lives outside the spec; a plan's scope is simply the steps it contains.
 
@@ -342,13 +344,89 @@ It is the project's rulebook: the constraints that hold across every phase, as o
 
 ## Roadmap / Phase Log Section (spec.md)
 
-`/bpe:brainstorm` and `/bpe:retrofit` write this section at spec creation; the Archive routine in `/bpe:plan --archive` appends to it when a plan is retired.
+`/bpe:brainstorm` and `/bpe:retrofit` write this section at spec creation; merge-mode brainstorm and the plan route of `/bpe:gh-issue` add `**Upcoming:**` items later; the Archive routine in `/bpe:plan --archive` appends each `**Shipped:**` line when a plan is retired and, in its fold-in, removes the converged `**Upcoming:**` item.
 spec.md is permanent and edited in place, so its body always describes current intent and never accumulates history.
 This section is the one place the spec points at that history.
 
-- **Format**: an H2 heading, `## Roadmap / phase log`, followed by three labeled lists. `**Shipped:**` holds one line per archived plan, `- <slug>: <one-line summary> (.ai-sessions/<slug>/)`, oldest first. `**Upcoming:**` holds a free-form list of planned phases that the user maintains by hand; it may be empty. `**Deferred:**` holds work the project is deliberately not doing now but may do later, one line each as `- <item>: <one-line reason or trigger>`; it is populated by the out-of-scope pass in `/bpe:brainstorm` and `/bpe:retrofit` (user-confirmed) and may read `- none`. At creation, `**Shipped:**` reads `- none yet` unless the repo already has archives.
+- **Format**: an H2 heading, `## Roadmap / phase log`, followed by three labeled lists. `**Shipped:**` holds one line per archived plan, `- <slug>: <one-line summary> (.ai-sessions/<slug>/)`, oldest first. `**Upcoming:**` holds the named work items that `Planned (ITEM):` sentences in `## Goals` refer to; it may be empty.
+The user can edit it by hand, and `/bpe:brainstorm` (new-spec mode for the first build's item, merge mode for later changes) and the plan route of `/bpe:gh-issue` add items to it.
+The Archive routine's fold-in removes an item when its plan converged. `**Deferred:**` holds work the project is deliberately not doing now but may do later, one line each as `- <item>: <one-line reason or trigger>`; it is populated by the out-of-scope pass in `/bpe:brainstorm` and `/bpe:retrofit` (user-confirmed) and may read `- none`. At creation, `**Shipped:**` reads `- none yet` unless the repo already has archives.
 - **Placement**: after `## Available tooling`, before `## Goals`.
 - **Purpose**: an index into the plan archives, so a reader finds what each phase built without git archaeology, plus the forward roadmap when the user keeps one. `**Deferred:**` doubles as the backlog of likely future expansions and, together with `## Non-goals`, as the scope fence for every phase: work listed in either is out of scope until the user promotes it into `## Goals`. The Archive routine appends each shipped line; nothing else edits the shipped list.
+When the Archive routine's fold-in runs, it also edits `**Upcoming:**` and `## Goals` (see "Goals Section (spec.md)").
+The executor and the validator stay fenced out of `spec.md`, so the fold-in is the one post-run reconciliation, and it waits for the user's confirmation.
+
+## Goals Section (spec.md)
+
+`/bpe:brainstorm` and `/bpe:retrofit` write this section; merge-mode brainstorm, the plan route of `/bpe:gh-issue`, and the Archive routine's fold-in in `/bpe:plan --archive` edit it afterward.
+It is the first place a fresh agent looks for what the project does, what is planned, and where it falls short.
+This section is the canonical definition; the skills conform to it.
+
+- **Format**: an H2 heading, `## Goals`, then a short lead paragraph, then `### Feature Status`, then `### Rules Every Feature Follows`, then one `### <Feature>` entry per feature or component.
+  The lead paragraph says Goals describes the project as it behaves today, explains the two markers below, and points at any archives that hold decision records.
+- **Placement**: after `## Roadmap / phase log`, before `## Non-goals`.
+- **Index**: by feature or component, never by phase, release, or issue.
+  A phase edits the entry of the feature it changes.
+  It never adds a section named for a release or an issue.
+- **Depth**: one entry per feature, holding what a planner needs to change the feature without reading the code.
+  That is the user-visible surface (syntax, commands, endpoints), the output or contract others depend on, the options and their defaults, and the rules that were decisions, including what stays literal or is rejected.
+  An entry holds no examples, no rationale, and no history; those live in the docs the Feature Status table links.
+  For an application or a plugin the surface is whatever a user or a caller touches: screens, slash commands, files written.
+- **`Planned (ITEM):` marker**: a sentence that starts `Planned (ITEM):` is behavior the named `**Upcoming:**` item will build.
+  It is not built yet, and it loses the prefix when the item ships.
+  `ITEM` is the item's name exactly as `**Upcoming:**` spells it.
+  The marker sits inline on the sentence, because planned behavior written in the present tense reads as built.
+  The `Planned` sentences of one item are that item's scope, which is the handle `/bpe:plan` plans from.
+- **`Known gap:` marker**: a sentence that starts `Known gap:` is a place where the code or the docs fall short of the entry.
+  It names the `**Upcoming:**` item or the issue that covers it.
+- **`### Feature Status` table**: opens Goals, with exactly the columns Feature, State, Open Work, Docs, and Code.
+  `State` carries release state (for example Unreleased or Released), `Open Work` names the Upcoming item or issue still touching the feature, and `Docs` and `Code` point at the files.
+  `**Shipped:**` stays the archive index of converged plans; "shipped" there means the plan converged, not that the work was released.
+  When the table and `**Shipped:**` disagree about release state, a reader trusts the table.
+  No bpe skill runs at release time, so the project's own release checklist updates the `State` column.
+- **`### Rules Every Feature Follows`**: cross-cutting behavior, stated once, as a bullet list.
+  An entry does not repeat a rule from here.
+- **Banned forms**: a heading named for a phase, release, or issue (`### 0.4.0 ...`, `### Active phase: ...`, `### Containers (Issue #30)`), and phase notes such as "renamed everywhere".
+  A fix that changed a feature rewrites that feature's entry as current behavior.
+- **Goals against CLAUDE.md**: Goals holds behavior and contract; CLAUDE.md holds how the code is built.
+  Neither repeats the other.
+- **Size**: there is no hard cap.
+  `/bpe:retrofit --resync` reports when `spec.md` passes 128 KB and offers to move the longest entries' detail into linked files.
+- **Spec without the table**: a spec whose Goals has no `### Feature Status` table keeps the earlier behavior.
+  `/bpe:plan` plans the section or package the user names, and the Archive routine skips the fold-in.
+  `/bpe:retrofit --resync` offers to rebuild Goals into this shape.
+- **Checker**: `scripts/check-artifacts.py` warns on Goals shape (a missing or malformed Feature Status table, a phase-named heading, a malformed marker).
+  The warnings never fail the check, because a heading rule has false positives ("OAuth 2.0") and false negatives ("### Active phase").
+- **Reference shape**:
+
+```markdown
+## Goals
+
+Goals describes <project> as it behaves today, one entry per feature, and is the first place to look for what exists.
+A sentence that starts `Planned (ITEM):` is behavior the named Roadmap Upcoming item will build; it is not built yet, and it loses the prefix when the item ships.
+A sentence that starts `Known gap:` is a place where the code or the docs fall short of the entry, with the Upcoming item or issue that covers it.
+A phase edits the entry of the feature it changes; it never adds a section named for a release or an issue.
+<pointers to the archives that hold decision records>
+
+### Feature Status
+
+| Feature | State | Open Work | Docs | Code |
+|---------|-------|-----------|------|------|
+| tabs | Unreleased | containers fixes (#30) | `extensions/tabs.md` | `tabs.py` |
+
+### Rules Every Feature Follows
+
+- <cross-cutting behavior, stated once>
+
+### <Feature>
+
+- <the user-visible surface: syntax, commands, endpoints>
+- <the output or contract others depend on>
+- <options and defaults>
+- <rules that were decisions, including what stays literal or is rejected>
+  Planned (containers fixes): <behavior not built yet>.
+  Today <what happens instead>.
+```
 
 ## Vendored Rules (.claude/rules/vendored/)
 

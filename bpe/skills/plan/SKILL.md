@@ -34,7 +34,8 @@ The archive layout and the accomplishment.md format are canonically documented i
 4. `mv todo.md .ai-sessions/<slug>/todo.md`
 5. Write `.ai-sessions/<slug>/accomplishment.md` with the renderer, not by hand. Build a JSON object from the just-moved plan.md and todo.md plus `git log` commit subjects (the template section in session-management.md documents each field; the keys are listed in the script's docstring), then run `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/render-artifact.py accomplishment --output .ai-sessions/<slug>/accomplishment.md < <json-file>`. Write the JSON file to a `mktemp` path outside the repo so it never shows up as an untracked file.
 6. Record the archive in spec.md. Under `**Shipped:**` in `## Roadmap / phase log`, append `- <slug>: <one-line summary> (.ai-sessions/<slug>/)` as the last line, taking the summary from the accomplishment.md title and its Convergence line. If the list still reads `- none yet`, replace that line instead of appending. If spec.md has no `## Roadmap / phase log` section (a spec written before the section existed), skip this step and tell the user; do not add the section here.
-7. Proceed to generate a fresh plan (the rest of this skill) ONLY when `--regen` is also in $ARGUMENTS. Otherwise stop here: tell the user the archive path and that `/bpe:plan` will generate a fresh plan when they are ready.
+7. Fold the plan into Goals (the fold-in). Run this step only when the plan converged (every top-level todo item checked) and spec.md's `## Goals` has a `### Feature Status` table. A superseded or partial plan, or a spec without the table, skips it and leaves Goals untouched. The `## Spec Slice` in accomplishment.md was captured in step 5, before this step. Name the plan's `**Upcoming:**` item (from the plan header), then in order: remove the `Planned (ITEM):` prefix from that item's sentences so they read as current behavior; correct each entry to what was built, using the plan, the session summaries' Deviations from Plan sections, and the code; update the Feature Status table (State, Open Work, Docs, Code); remove the item from `**Upcoming:**`; update or remove any `Known gap:` sentence the item covered. Write the result to a scratch directory as `spec.md`, run `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/check-artifacts.py` on it, show `diff -u spec.md <scratch>/spec.md`, and write it over spec.md only after the user confirms. Tell the user if they decline that Goals still carries the Planned sentences.
+8. Proceed to generate a fresh plan (the rest of this skill) ONLY when `--regen` is also in $ARGUMENTS. Otherwise stop here: tell the user the archive path and that `/bpe:plan` will generate a fresh plan when they are ready.
 
 Draft a detailed, step-by-step blueprint for building this project. Then, once you have a solid plan, break it down into small, iterative chunks that build on each other. Look at these chunks and then go another round to break it into small steps. Review the results and make sure that the steps are small enough to be implemented safely with strong testing, but big enough to move the project forward. Iterate until you feel that the steps are right sized for this project.
 
@@ -189,6 +190,15 @@ The Task template's Scope / Tooling / Do / Verify / Document sub-steps are still
 
 Make sure and separate each prompt section. Use markdown. Each prompt should be tagged as text using code tags. The goal is to output prompts that execute-plan can follow step-by-step, but context and architectural decisions are important as well.
 
+## What to Plan
+
+A permanent spec holds the whole project, so decide what this plan covers before drafting steps.
+
+- Goals has a `### Feature Status` table and the user names an `**Upcoming:**` item (or `$ARGUMENTS` does): plan that item's `Planned (ITEM):` sentences, across every feature entry that carries them. Everything else in Goals is built and out of scope. Name the item in the plan header.
+- Goals has the table, Planned sentences exist, and no item is named: list the `**Upcoming:**` items that have Planned sentences and ask the user to pick one (when only one has them, take it and say so), then proceed as in the named-item case.
+- Goals has the table and nothing is marked `Planned`, or the named item has no Planned sentences: stop, and say that there is nothing to plan. Name the fix: run `/bpe:brainstorm` in merge mode, which adds the Planned sentences and the Upcoming item. Write no plan.md.
+- Goals has no table (a spec written before the entry form): plan the section or package the user names, as before, and print one line suggesting `/bpe:retrofit --resync` to rebuild Goals into entries.
+
 ## Honor the Spec's Fences
 
 Before drafting steps, read three parts of spec.md and treat them as constraints on the plan.
@@ -298,6 +308,7 @@ The grammar for the `**Batch:**` line lives in `references/validator-protocol.md
 ## Output Format
 
 Store the plan in @plan.md with:
+- A header that names the `**Upcoming:**` item the plan builds (when the spec has a Feature Status table)
 - Current Status section showing implementation progress
 - Each step as a detailed prompt with numbered sub-instructions
 - Implementation Guidelines section
