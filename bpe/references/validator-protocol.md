@@ -71,6 +71,7 @@ goal.md carries only the condition, the read instruction, and the hard rules, so
 3. Read first `- [ ]` in todo.md and resolve its batch per "Batch Line" (the steps sharing its batch name).
    None remain => run the final sweep per "Final Sweep" (full and section modes only), then run `<test-cmd>`, echo `git log origin/<branch>..HEAD`, stop.
    In section mode, "none remain" means no `- [ ]` remains under the named section; later sections may still hold unchecked items.
+   This also covers the first turn of a resumed run that starts with nothing unchecked, so the sweep is the first dispatch.
 4. Execute one state-machine step from this file against the current batch (turn 1 implement, optional turns 2..K validator + fix, final turn finalize).
    Turn 1 dispatches implement for the whole batch with an Agent call and records the returned agent id.
    Fix and finalize turns send to that id with SendMessage (load it first with ToolSearch `select:SendMessage`).

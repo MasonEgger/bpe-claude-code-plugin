@@ -6,10 +6,11 @@ Models as the script reported them: Phase 2 ran `claude-sonnet-5-5` for every ex
 The 0.7.2 baseline ran `claude-opus-4-8` and `claude-fable-5` (see `.ai-sessions/research/baseline-0.7.2-goal-run.md`).
 The profiles differ, so minutes and token counts are not model-for-model comparable.
 
-Script: `bpe/scripts/goal-run-report.py <phase-2 transcript> --since 2026-11-11T17:32:31Z`.
+Script: `bpe/scripts/goal-run-report.py <phase-2 transcript> --since 2026-11-11T17:32:31Z --until 2026-11-13T21:30:00Z`.
+The `--until` bound is the moment the note was first measured (after the release implement dispatch, before its finalize), so the later final-sweep dispatches in the same transcript stay out.
 That start is the Section 3 commit `e4c07ef` (2026-11-11T11:32:31-06:00).
 Goal dispatches began at 12:38:35 CST (18:38:35Z).
-The dispatch tables are identical for both starts: 17 subagent dispatches, 59.8 minutes, 22.4M subagent cache-read tokens.
+The dispatch tables are identical for both starts: 17 subagent dispatches, 19.3 minutes, 22.9M subagent cache-read tokens.
 Only the orchestrator row moves: 358 turns and 63.9M cache-read from the commit, 312 turns and 60.8M cache-read from 12:38:35.
 That is a 5 percent difference in cache-read, so the plan's git-derived start is used below.
 
@@ -21,7 +22,7 @@ Phase 2 did not run as one clean loop, so the span total overstates the batch lo
   It was finished by hand and committed as `d1afbc9`.
 - Loop 2, batch `checkpoint` (Section 5, 3 steps): ran 13:18:35 to 13:32:01 CST, also hit the cap, and got a fourth fix pass outside the loop (`44d06c8`).
 - Hand-run work in the same session, not loop cost: the validator-loop redesign (`3827949`) with two hand-dispatched `bpe:validator` passes, and this Section 6 implement dispatch.
-  This dispatch also runs inside the span it measures, so its own cost is partly counted (about 0.2 minutes of subagent time so far, and none of its finalize).
+  This dispatch also runs inside the span it measures, so its own cost is partly counted (0.8 minutes of subagent time, and none of its finalize).
 
 The script separates the two loop windows with `--since` and `--until`.
 Rows in "Loop Windows" below are those two windows added together.
@@ -34,12 +35,12 @@ Per-step values divide by 12 for the baseline and by 5 for Phase 2 (Section 4 ha
 | Measure | 0.7.2 baseline | Phase 2 whole span | Phase 2 loop windows | Baseline per step | Phase 2 span per step | Phase 2 loops per step |
 |---|---|---|---|---|---|---|
 | Dispatches | 42 | 17 | 12 | 3.5 | 3.4 | 2.4 |
-| Subagent minutes | 88.8 | 59.8 | 57.3 | 7.4 | 12.0 | 11.5 |
-| Subagent cache-read tokens | 76.8M | 22.4M | 20.4M | 6.4M | 4.5M | 4.1M |
+| Subagent minutes | 88.8 | 19.3 | 15.2 | 7.4 | 3.9 | 3.0 |
+| Subagent cache-read tokens | 76.8M | 22.9M | 17.9M | 6.4M | 4.6M | 3.6M |
 | Orchestrator turns | 283 | 358 | 83 | 23.6 | 71.6 | 16.6 |
 | Orchestrator cache-read tokens | 108.7M | 63.9M | 14.0M | 9.1M | 12.8M | 2.8M |
 
-Phase 2 whole-span subagent minutes split as 46.7 implement and 13.1 validator.
+Phase 2 whole-span subagent minutes split as 3.4 implement, 13.1 validator, 2.0 fix, and 0.8 finalize.
 The baseline split was 30.6 implement, 30.2 validator, 4.2 fix, 23.7 finalize.
 
 ### Warn Rate Per First-Pass Validation
@@ -64,17 +65,16 @@ The convergence-aware cap has not yet run in a real goal loop, so no number here
 
 ## What The Numbers Show
 
-Batch mode cut the dispatch count per step slightly (3.4 against 3.5 over the whole span, 2.4 in the loop windows) and cut subagent cache-read per step by about a third, mostly because finalize and fix were warm continuations.
+Batch mode cut the dispatch count per step slightly (3.4 against 3.5 over the whole span, 2.4 in the loop windows) and cut subagent cache-read per step by 28 percent over the whole span (4.6M against 6.4M) and 44 percent in the loop windows (3.6M), mostly because finalize and fix were warm continuations.
 The orchestrator figures for the loop windows are far lower per step (2.8M against 9.1M cache-read) than the baseline, but the whole-span figure is higher because it includes the hand-run redesign and unrelated session turns, so neither orchestrator column is a clean measure of the loop.
 Quality did not hold up in this run: both first passes returned block verdicts, against 0 blocks in 10 baseline first passes, and both batches hit the cap.
 
 What the numbers cannot show:
 
-- The script finds no subagent transcript for SendMessage continuations, so the 5 fix rows and the finalize row report 0 minutes and 0 tokens.
-  Phase 2 subagent cost is understated, and the baseline (which cold-dispatched fix and finalize and has 27.9 minutes and 29.2M cache-read for them) is not measured the same way.
+- Recomputed 2026-11-22 with the fixed `goal-run-report.py`, which attributes SendMessage continuation usage to the turns inside each continuation's own window; the 2026-11-13 figures left the 5 fix rows and the finalize row at 0 minutes and 0 tokens.
 - The plan content differs: Phase 2 steps edited protocol and agent prose and Python scripts, the baseline steps were 12 Task-shape fixes.
 - The models differ between runs, as noted in the header.
-- The checkpoint implement dispatch reads 41.7 minutes first to last timestamp, which makes `implement` look expensive; I did not trace why, and it may include time spent waiting.
+- Dispatch minutes are first to last timestamp inside the dispatch's own window, so idle time between a dispatch and its next continuation is not counted; the checkpoint implement dispatch now reads 1.7 minutes (the 2026-11-13 table read 41.7 because its file also held the later continuations).
 - No final sweep ran in this loop, because the Phase 2 goal.md was rendered before Section 4 landed.
 - Only 2 first-pass validations exist, so the warn and block rates carry far less weight than the baseline's 10.
 - Dispatch start times in the script table are HH:MM UTC with no date, which is why the last three rows (2026-11-13) look out of order.

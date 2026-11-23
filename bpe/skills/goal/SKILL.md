@@ -40,6 +40,7 @@ grep -c '^- \[ \]' todo.md 2>/dev/null || echo 0
 grep -q '^commit-msg\.md$' .gitignore && echo "gitignore commit-msg.md: ok" || echo "gitignore commit-msg.md: MISSING"
 grep -q '^goal\.md$' .gitignore && echo "gitignore goal.md: ok" || echo "gitignore goal.md: MISSING"
 grep -cE '^\*\*(Tools|Validator consults):\*\*' plan.md 2>/dev/null || echo 0
+git log --format=%s "$(git merge-base main HEAD)"..HEAD | grep -c '^Apply final sweep fixes$' || echo 0
 ```
 
 Then resolve the verification command through a three-stage cascade:
@@ -59,10 +60,16 @@ The resolved command need not be a test runner; for a prose or config project it
 - Branch is `main` or `master`. Tell the user: "Refusing to run autonomous mode on main. Create a feature branch first: `git checkout -b <branch-name>`."
 - `git status --short` is non-empty. Tell the user: "Refusing to start with uncommitted or untracked changes. The goal loop's interruption recovery resets the tree to HEAD (`git reset --hard && git clean -fd`) and would destroy them. Commit or stash first."
 - `plan.md` or `todo.md` is missing.
-- Zero unchecked items in `todo.md`.
+- Zero unchecked items in `todo.md`, and a commit with the subject "Apply final sweep fixes" exists on the branch since main. Tell the user: "The run is finished: every todo item is checked and the final sweep already committed its fixes."
+- Zero unchecked items in `todo.md` in step mode. Tell the user: "Step mode has no final sweep; there is nothing left to run."
 - `commit-msg.md` is not gitignored. Tell the user to add it and re-run.
 - `goal.md` is not gitignored. Tell the user to add it and re-run; this command writes the `/goal` block there as a working artifact.
 - The verification-command cascade resolves nothing: no manifest match, no `**Verification command:**` field in spec.md, and the user didn't supply one.
+
+Zero unchecked items in full or section mode, with no sweep commit on the branch, is not a refusal.
+Say "Every todo item is checked; this run goes straight to the final sweep." and continue.
+In section mode, "zero unchecked items" means zero under the named section.
+A branch whose earlier sweep returned clean has no sweep commit, so a resumed run sweeps it again; that costs one final-validator dispatch and changes nothing.
 
 The Tools-block count from pre-flight (`**Tools:**`, or legacy `**Validator consults:**`) is informational, not a refusal trigger. Zero is fine; the orchestrator treats every section as `none` and skips the validator loop.
 

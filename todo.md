@@ -4,9 +4,9 @@ Mirrors plan.md, one checkbox per step; check off each step as it finalizes.
 
 ## Section 1: Loop Follow-Ups (#58)
 
-- [ ] Step 1: Resume a Fully Checked todo.md into the Final Sweep
-- [ ] Step 2: Attribute SendMessage Continuation Usage in goal-run-report.py
-- [ ] Step 3: Correct the Batch-Mode Comparison with Continuation Usage
+- [x] Step 1: Resume a Fully Checked todo.md into the Final Sweep
+- [x] Step 2: Attribute SendMessage Continuation Usage in goal-run-report.py
+- [x] Step 3: Correct the Batch-Mode Comparison with Continuation Usage
 - [ ] Step 4: Trim agents/step-executor.md Under 10,000 Characters
 - [ ] Step 5: Trim agents/validator.md Under 10,000 Characters
 

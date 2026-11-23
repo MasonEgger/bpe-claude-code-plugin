@@ -23,8 +23,15 @@ across several entries that share a message id, so the API responses column coun
 the unique message ids among the same entries. Every other figure is summed per
 entry, with no deduplication.
 
-Continuations (SendMessage) add a dispatch count and no second copy of the usage,
-because each subagent transcript is summed once, under its Agent dispatch.
+A SendMessage continuation resumes the same subagent, so its assistant turns land
+in the same agent-<agentId>.jsonl as the Agent dispatch. Each assistant entry is
+attributed to the one dispatch for that agent id whose window contains it. A
+window opens at the dispatch's tool_use timestamp and closes at the next dispatch
+to the same agent id, or at --until (or the end of the file) for the last one. The
+parent transcript's tool_result arrives at launch (the dispatch is asynchronous),
+so it cannot close a window. An entry before the first window or after --until is
+attributed to no dispatch, for every dispatch alike. An Agent dispatch with no
+continuations keeps its whole file up to --until.
 A continuation's kind is the first word of its summary when that names a known
 kind (implement, validate, re-validate, fix, finalize, sweep). Otherwise it is the
 word on a "Mode: <word>" line in the message, then the first word of the message's
@@ -45,6 +52,7 @@ import argparse
 import json
 import re
 import sys
+from bisect import bisect_right
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -309,26 +317,38 @@ def classify_continuation(summary: str, message: str) -> str:
     return "other"
 
 
-def subagent_usage(session: Path, agent_id: str) -> Usage:
-    """Sum assistant usage over one subagent transcript.
+def attribute_usage(session: Path, dispatches: list[Dispatch], until: datetime | None) -> None:
+    """Add each subagent assistant entry to the dispatch whose window contains it.
+
+    A window opens at a dispatch's start and closes at the next dispatch to the
+    same agent id. Entries before the first window, or after until, belong to no
+    dispatch and are dropped.
 
     Args:
         session: Parent transcript path; subagents live in <stem>/subagents/.
-        agent_id: The agentId from the Agent tool_result.
-
-    Returns:
-        Totals for the subagent, all zero when its transcript is missing.
+        dispatches: In-span dispatches with agent ids resolved, updated in place.
+        until: Inclusive upper bound that closes the last window, or None.
     """
-    usage = Usage()
-    path = session.with_suffix("") / "subagents" / f"agent-{agent_id}.jsonl"
-    if not path.is_file():
-        return usage
-    for entry in read_entries(path):
-        stamp = parse_entry_timestamp(entry.get("timestamp"))
-        if get_str(entry, "type") != "assistant" or stamp is None:
+    by_agent: dict[str, list[Dispatch]] = {}
+    for dispatch in dispatches:
+        if dispatch.agent_id:
+            by_agent.setdefault(dispatch.agent_id, []).append(dispatch)
+
+    for agent_id, members in by_agent.items():
+        members.sort(key=lambda dispatch: dispatch.start)
+        starts = [dispatch.start for dispatch in members]
+        path = session.with_suffix("") / "subagents" / f"agent-{agent_id}.jsonl"
+        if not path.is_file():
             continue
-        add_assistant_entry(usage, entry, stamp)
-    return usage
+        for entry in read_entries(path):
+            stamp = parse_entry_timestamp(entry.get("timestamp"))
+            if get_str(entry, "type") != "assistant" or stamp is None:
+                continue
+            if until is not None and stamp > until:
+                continue
+            index = bisect_right(starts, stamp) - 1
+            if index >= 0:
+                add_assistant_entry(members[index].usage, entry, stamp)
 
 
 def scan_parent(session: Path, since: datetime | None, until: datetime | None) -> tuple[list[Dispatch], Usage]:
@@ -498,13 +518,7 @@ def main(argv: list[str] | None = None) -> int:
     dispatches, orchestrator = scan_parent(args.session, since, until)
     unresolved = resolve_continuations(dispatches)
 
-    # Cost is per agent id, so a continuation adds a dispatch but no second cost.
-    costs: dict[str, Usage] = {}
-    for dispatch in dispatches:
-        if dispatch.agent_id and dispatch.agent_id not in costs:
-            costs[dispatch.agent_id] = subagent_usage(args.session, dispatch.agent_id)
-        if dispatch.agent_id and not dispatch.continuation:
-            dispatch.usage = costs[dispatch.agent_id]
+    attribute_usage(args.session, dispatches, until)
 
     print("## Per-Dispatch")
     print()
@@ -553,12 +567,10 @@ def main(argv: list[str] | None = None) -> int:
         members = [dispatch for dispatch in dispatches if dispatch.kind == kind]
         if not members:
             continue
-        # Minutes, tokens, and tools count each dispatch once; continuations add none.
-        own = [dispatch for dispatch in members if not dispatch.continuation]
-        minutes = sum(dispatch.usage.minutes for dispatch in own)
-        cache_read = sum(dispatch.usage.cache_read for dispatch in own)
-        cache_create = sum(dispatch.usage.cache_create for dispatch in own)
-        output = sum(dispatch.usage.output for dispatch in own)
+        minutes = sum(dispatch.usage.minutes for dispatch in members)
+        cache_read = sum(dispatch.usage.cache_read for dispatch in members)
+        cache_create = sum(dispatch.usage.cache_create for dispatch in members)
+        output = sum(dispatch.usage.output for dispatch in members)
         total.cache_read += cache_read
         total.cache_create += cache_create
         total.output += output
@@ -577,7 +589,7 @@ def main(argv: list[str] | None = None) -> int:
         [
             "all subagents",
             f"{total_count:,}",
-            f"{sum(row_minutes(dispatch) for dispatch in dispatches):.1f}",
+            f"{sum(dispatch.usage.minutes for dispatch in dispatches):.1f}",
             f"{total.cache_read:,}",
             f"{total.cache_create:,}",
             f"{total.output:,}",
@@ -624,18 +636,6 @@ def continuation_label(dispatch: Dispatch) -> str:
     if dispatch.agent_id is None:
         return f" (continuation, unresolved to={dispatch.target})"
     return " (continuation)"
-
-
-def row_minutes(dispatch: Dispatch) -> float:
-    """Return the minutes a dispatch adds to the subagent total.
-
-    Args:
-        dispatch: One dispatch.
-
-    Returns:
-        Zero for a continuation, otherwise the subagent transcript minutes.
-    """
-    return 0.0 if dispatch.continuation else dispatch.usage.minutes
 
 
 if __name__ == "__main__":
